@@ -1,0 +1,56 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Card from "../components/Card.astro";
+import data from "../../public/data.json";
+
+interface Producto {
+    color: string;
+    fotos:string[];
+    genero: string;
+    precio:string
+}
+const caballeros = data.data.filter((dato:Producto) => dato.genero === "Caballero")
+console.log(caballeros);
+
+---
+
+<Layout title="Uniformes Médicos 2015 - Caballeros">
+  <main>
+    <h1 class="text-blue-500">Caballeros</h1>
+    <ul role="list" class="link-card-grid">
+        {caballeros.map((dato) =>
+
+            <Card
+              href="https://docs.astro.build/"
+              color={dato.color}
+              precio={dato.precio}
+              foto={dato.fotos[0]}
+            />)}
+    </ul>
+  </main>
+</Layout>
+
+<style>
+  main {
+    margin: auto;
+    padding: 1rem;
+    width: 800px;
+    max-width: calc(100% - 2rem);
+    color: black;
+    font-size: 20px;
+    line-height: 1.6;
+  }
+  h1 {
+    font-size: 4rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    margin-bottom: 1em;
+  }
+  .link-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
+    gap: 2rem;
+    padding: 0;
+  }
+</style>

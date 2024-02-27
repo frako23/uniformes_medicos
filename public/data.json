@@ -1,0 +1,78 @@
+{
+    "data":[
+
+        {
+            "color":"Azul Marino",
+            "fotos":["DAM1","DAM2","DAM3","DAM4"],
+            "genero":"Dama",
+            "precio": "$50"
+        },
+        {
+            "color":"Azul Rey",
+            "fotos":["DAR1","DAR2","DAR3","DAR4"],
+            "genero":"Dama",
+            "precio": "$50"
+        },
+        {
+            "color":"Gris",
+            "fotos":["DG1","DG2","DG3","DG4"],
+            "genero":"Dama",
+            "precio": "$50"
+        },
+        {
+            "color":"Negro",
+            "fotos":["DN1","DN2","DN3","DN4"],
+            "genero":"Dama",
+            "precio": "$50"
+        },
+        {
+            "color":"Verde",
+            "fotos":["DV1","DV2","DV3","DV4"],
+            "genero":"Dama",
+            "precio": "$50"
+        },
+        
+        {
+            "color":"Vinotinto",
+            "fotos":["DVTT1","DVTT2","DVTT3","DVTT4"],
+            "genero":"Dama",
+            "precio": "$50"
+        },
+        {
+            "color":"Azul Cielo",
+            "fotos":["CAC1","CAC2","CAC3","CAC4","CAC5"],
+            "genero":"Caballero",
+            "precio": "$50"
+        },
+        {
+            "color":"Azul Marino",
+            "fotos":["CAM1","CAM2","CAM3","CAM4"],
+            "genero":"Caballero",
+            "precio": "$50"
+        },
+        {
+            "color":"Gris",
+            "fotos":["CG1","CG2","CG3","CG4"],
+            "genero":"Caballero",
+            "precio": "$50"
+        },
+        {
+            "color":"Negro",
+            "fotos":["CN1","CN2","CN3","CN4"],
+            "genero":"Caballero",
+            "precio": "$50"
+        },
+        {
+            "color":"Verde",
+            "fotos":["CV1","CV2","CV3","CV4"],
+            "genero":"Caballero",
+            "precio": "$50"
+        },
+        {
+            "color":"Vinotinto",
+            "fotos":["CVTT1","CVTT2","CVTT3","CVTT4"],
+            "genero":"Caballero",
+            "precio": "$50"
+        }
+    ]
+}
