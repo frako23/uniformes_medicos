@@ -5,9 +5,10 @@ interface Props {
   precio: string;
   href: string;
   foto: string;
+  id:string
 }
 
-const { href, color, precio, foto } = Astro.props;
+const { href, color, precio, foto, id } = Astro.props;
 ---
 
 <div
@@ -38,7 +39,7 @@ const { href, color, precio, foto } = Astro.props;
       <div class="lg:flex">
 
         <a
-          href="https://api.whatsapp.com/send?phone=+584241468579&text=Hola!%20estoy%20interesad@%20en%20uniformes%20médicos"
+          href={`/productos/${id}`}
           class="text-white bg-purple-700 hover:bg-purple-800 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 flex text-center  mb-3 lg:mr-3 lg:mb-0  "
         >
           Ver más

@@ -4,31 +4,32 @@ import Card from "../components/Card.astro";
 import data from "../../public/data.json";
 
 interface Producto {
-    color: string;
-    fotos:string[];
-    genero: string;
-    precio:string
+  color: string;
+  fotos: string[];
+  genero: string;
+  precio: string;
 }
 
+const damas = data.data.filter((dato: Producto) => dato.genero === "Dama");
 
-const damas = data.data.filter((dato:Producto) => dato.genero === "Dama")
-
-console.log(damas)
+console.log(damas);
 ---
 
 <Layout title="Uniformes Médicos 2015 - Damas">
   <main>
     <h1 class="text-pink-600">Damas</h1>
     <ul role="list" class="link-card-grid">
-{damas.map((dato) =>
-
-<Card
-  href="https://docs.astro.build/"
-  color={dato.color}
-  precio={dato.precio}
-  foto={dato.fotos[0]}
-/>)
-}
+      {
+        damas.map((dato) => (
+          <Card
+            href="https://docs.astro.build/"
+            color={dato.color}
+            precio={dato.precio}
+            foto={dato.fotos[0]}
+            id={dato.id}
+          />
+        ))
+      }
     </ul>
   </main>
 </Layout>
