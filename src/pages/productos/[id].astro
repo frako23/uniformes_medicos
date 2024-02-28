@@ -1,64 +1,31 @@
 ---
-import type { GetStaticPaths } from "astro";
-import { Image } from "astro:assets";
+import InteractiveCard from "../../components/InteractiveCard.tsx";
 import Layout from "../../layouts/Layout.astro";
 import data from "../../../public/data.json";
+
 console.log(data.data);
 
-export const getStaticPaths = () => {
-  return data.data.map((dato) => [{ params: { id: dato.id } }]);
-};
-
 interface Producto {
-  color: string;
-  fotos: string[];
-  genero: string;
-  precio: string;
-  id: string;
-}
+    color: string;
+    fotos: string[];
+    genero: string;
+    precio: string;
+    id: string;
+  }
+
+export function getStaticPaths () {
+  return  data.data.flatMap((dato) => [{ params: { id: dato.id } }]);
+};
 
 const { id } = Astro.params;
 
-const producto = data.data.find((dato) => dato.id === id);
-
+const producto :Producto | undefined = data.data.find((dato) => dato.id === id) 
 console.log(producto);
 ---
 
 <Layout title={`${producto?.genero} - ${producto?.color} `}>
   <main>
-    <div class="grid gap-4 lg:grid-cols-5">
-      <div class="order-last flex gap-4 lg:order-none lg:flex-col">
-        {
-          producto?.fotos.map((foto: string) => (
-            <div class="overflow-hidden rounded-lg bg-gray-100">
-              <Image
-                src={`/${foto}.avif`}
-                width={200}
-                height={200}
-                alt="photo"
-                class="h-full w-full object-cover object-center cursor-pointer"
-              />
-            </div>
-          ))
-        }
-      </div>
-      <div
-        class="relative overflow-hidden rounded-lg bg-gray-100 lg:col-span-4"
-      >
-        <Image
-          src={`/${producto?.fotos[0]}.avif`}
-          alt="Photo"
-          width={500}
-          height={500}
-          class="h-full w-full object-cover object-center"
-        />
-        <!-- <span
-          class="absolute left-0 top-0 rounded-br-lg bg-red-500 px-3 py-1.5 text-sm uppercase tracking-wider text-white"
-        >
-          Sale
-        </span> -->
-      </div>
-    </div>
+<InteractiveCard producto={producto} client:only/>
 
     <div
       class="w-full max-w-4xl p-4 bg-white border border-gray-200 rounded-lg shadow sm:p-8"
@@ -72,123 +39,6 @@ console.log(producto);
           >{producto?.precio}</span
         >
       </div>
-      <!-- <ul role="list" class="space-y-5 my-7">
-        <li class="flex items-center">
-          <svg
-            class="flex-shrink-0 w-4 h-4 text-blue-700 dark:text-blue-500"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"
-            ></path>
-          </svg>
-          <span
-            class="text-base font-normal leading-tight text-gray-500 dark:text-gray-400 ms-3"
-            >2 team members</span
-          >
-        </li>
-        <li class="flex">
-          <svg
-            class="flex-shrink-0 w-4 h-4 text-blue-700 dark:text-blue-500"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"
-            ></path>
-          </svg>
-          <span
-            class="text-base font-normal leading-tight text-gray-500 dark:text-gray-400 ms-3"
-            >20GB Cloud storage</span
-          >
-        </li>
-        <li class="flex">
-          <svg
-            class="flex-shrink-0 w-4 h-4 text-blue-700 dark:text-blue-500"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"
-            ></path>
-          </svg>
-          <span
-            class="text-base font-normal leading-tight text-gray-500 dark:text-gray-400 ms-3"
-            >Integration help</span
-          >
-        </li>
-        <li class="flex line-through decoration-gray-500">
-          <svg
-            class="flex-shrink-0 w-4 h-4 text-gray-400 dark:text-gray-500"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"
-            ></path>
-          </svg>
-          <span class="text-base font-normal leading-tight text-gray-500 ms-3"
-            >Sketch Files</span
-          >
-        </li>
-        <li class="flex line-through decoration-gray-500">
-          <svg
-            class="flex-shrink-0 w-4 h-4 text-gray-400 dark:text-gray-500"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"
-            ></path>
-          </svg>
-          <span class="text-base font-normal leading-tight text-gray-500 ms-3"
-            >API Access</span
-          >
-        </li>
-        <li class="flex line-through decoration-gray-500">
-          <svg
-            class="flex-shrink-0 w-4 h-4 text-gray-400 dark:text-gray-500"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"
-            ></path>
-          </svg>
-          <span class="text-base font-normal leading-tight text-gray-500 ms-3"
-            >Complete documentation</span
-          >
-        </li>
-        <li class="flex line-through decoration-gray-500">
-          <svg
-            class="flex-shrink-0 w-4 h-4 text-gray-400 dark:text-gray-500"
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"
-            ></path>
-          </svg>
-          <span class="text-base font-normal leading-tight text-gray-500 ms-3"
-            >24×7 phone & email support</span
-          >
-        </li>
-      </ul> -->
       <a
         href="https://api.whatsapp.com/send?phone=+584241468579&text=Hola!%20estoy%20interesad@%20en%20uniformes%20médicos"
         class="text-white mt-7 bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-200 font-medium rounded-lg text-sm px-5 py-2.5 inline-flex justify-center w-full text-center"
