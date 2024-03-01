@@ -1,8 +1,8 @@
 ---
-import Footer from '../components/Footer.astro';
-import Navbar from '../components/Navbar.astro';
+import Footer from "../components/Footer.astro";
+import Navbar from "../components/Navbar.astro";
 interface Props {
-	title: string;
+  title: string;
 }
 
 const { title } = Astro.props;
@@ -10,46 +10,88 @@ const { title } = Astro.props;
 
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="description" content="Explora nuestro catálogo, elige tus prendas favoritas y disfruta de la comodidad de comprar tus uniformes médicos desde la comodidad de tu hogar. ¡Estamos aquí para ayudarte a lucir impecable en cada paso que des en tu carrera profesional!" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" rel="stylesheet" />
-		<meta name="generator" content={Astro.generator} />
-		<title>{title}</title>
-	</head>
-	<body>
-		<Navbar />
-		<slot />
-		<Footer/>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
-	</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="description"
+      content="Explora nuestro catálogo, elige tus prendas favoritas y disfruta de la comodidad de comprar tus uniformes médicos desde la comodidad de tu hogar. ¡Estamos aquí para ayudarte a lucir impecable en cada paso que des en tu carrera profesional!"
+    />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css"
+      rel="stylesheet"
+    />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+
+    <!-- HTML Meta Tags -->
+
+    <!-- Facebook Meta Tags -->
+    <meta property="og:url" content="https://uniformes-medicos.vercel.app" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Bienvenido a Uniformes Médicos 2015" />
+    <meta
+      property="og:description"
+      content="Explora nuestro catálogo, elige tus prendas favoritas y disfruta de la comodidad de comprar tus uniformes médicos desde la comodidad de tu hogar. ¡Estamos aquí para ayudarte a lucir impecable en cada paso que des en tu carrera profesional!"
+    />
+    <meta
+      property="og:image"
+      content="https://uniformes-medicos.vercel.app/pantalla.png"
+    />
+
+    <!-- Twitter Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="twitter:domain" content="uniformes-medicos.vercel.app" />
+    <meta
+      property="twitter:url"
+      content="https://uniformes-medicos.vercel.app"
+    />
+    <meta name="twitter:title" content="Bienvenido a Uniformes Médicos 2015" />
+    <meta
+      name="twitter:description"
+      content="Explora nuestro catálogo, elige tus prendas favoritas y disfruta de la comodidad de comprar tus uniformes médicos desde la comodidad de tu hogar. ¡Estamos aquí para ayudarte a lucir impecable en cada paso que des en tu carrera profesional!"
+    />
+    <meta
+      name="twitter:image"
+      content="https://uniformes-medicos.vercel.app/pantalla.png"
+    />
+
+    <!-- Meta Tags Generated via https://www.opengraph.xyz -->
+  </head>
+  <body>
+    <Navbar />
+    <slot />
+    <Footer />
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"
+    ></script>
+  </body>
 </html>
 <style is:global>
-	:root {
-		--accent: 136, 58, 234;
-		--accent-light: 224, 204, 250;
-		--accent-dark: 49, 10, 101;
-		--accent-gradient: linear-gradient(
-			45deg,
-			rgb(var(--accent)),
-			rgb(var(--accent-light)) 30%,
-			white 60%
-		);
-	}
-	html {
-		font-family: system-ui, sans-serif;
-	}
-	code {
-		font-family:
-			Menlo,
-			Monaco,
-			Lucida Console,
-			Liberation Mono,
-			DejaVu Sans Mono,
-			Bitstream Vera Sans Mono,
-			Courier New,
-			monospace;
-	}
+  :root {
+    --accent: 136, 58, 234;
+    --accent-light: 224, 204, 250;
+    --accent-dark: 49, 10, 101;
+    --accent-gradient: linear-gradient(
+      45deg,
+      rgb(var(--accent)),
+      rgb(var(--accent-light)) 30%,
+      white 60%
+    );
+  }
+  html {
+    font-family: system-ui, sans-serif;
+  }
+  code {
+    font-family:
+      Menlo,
+      Monaco,
+      Lucida Console,
+      Liberation Mono,
+      DejaVu Sans Mono,
+      Bitstream Vera Sans Mono,
+      Courier New,
+      monospace;
+  }
 </style>
