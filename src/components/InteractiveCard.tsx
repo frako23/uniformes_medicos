@@ -19,7 +19,7 @@ export default function InteractiveCard ({producto}:{producto:Producto | any}) {
     <div className="order-last flex gap-4 lg:order-none lg:flex-col">
       {
         producto?.fotos.map((foto: string, index:number) => (
-          <div key={index} className="overflow-hidden rounded-lg bg-gray-100">
+          <div key={index} className={`overflow-hidden rounded-lg ${bigImage === foto ? "bg-gray-500" : "bg-gray-100"} `}>
             <img
               src={`/${foto}.avif`}
               width={200}

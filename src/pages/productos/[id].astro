@@ -20,7 +20,8 @@ export function getStaticPaths () {
 const { id } = Astro.params;
 
 const producto :Producto | undefined = data.data.find((dato) => dato.id === id) 
-console.log(producto);
+
+
 ---
 
 <Layout title={`${producto?.genero} - ${producto?.color} `}>
@@ -40,7 +41,7 @@ console.log(producto);
         >
       </div>
       <a
-        href="https://api.whatsapp.com/send?phone=+584241468579&text=Hola!%20estoy%20interesad@%20en%20uniformes%20médicos"
+        href={`https://api.whatsapp.com/send?phone=+584241468579&text=Hola!%20estoy%20interesad@%20en%20este%20uniforme%0A%0Ahttps://uniformes-medicos.vercel.app/productos/${id}`}
         class="text-white mt-7 bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-200 font-medium rounded-lg text-sm px-5 py-2.5 inline-flex justify-center w-full text-center"
         >Comprar
         <svg
@@ -54,11 +55,11 @@ console.log(producto);
           ></path></svg
         ></a
       >
-      <button
+      <!-- <button
         type="button"
         class="text-white mt-7 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-200 font-medium rounded-lg text-sm px-5 py-2.5 inline-flex justify-center w-full text-center"
         >Compartir</button
-      >
+      > -->
     </div>
   </main>
 
