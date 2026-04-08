@@ -1,0 +1,103 @@
+---
+import MainCard from "../components/MainCard.astro";
+import Layout from "../layouts/Layout.astro";
+import type { Producto } from "../utils/types";
+
+const STRAPI_URL = import.meta.env.STRAPI_URL || "https://strapi.frakodev.com/";
+const STRAPI_TOKEN = import.meta.env.STRAPI_TOKEN;
+
+const url = `${STRAPI_URL}api/productos?populate=*`;
+const response = await fetch(url, {
+  headers: {
+    Authorization: `Bearer ${STRAPI_TOKEN}`,
+  },
+});
+const { data: uniformes } = await response.json();
+
+console.log(uniformes);
+---
+
+<Layout title="Bienvenido a Uniformes Médicos 2015">
+  <main>
+    <section class="bg-white">
+      <div class="py-8 px-4 mx-auto max-w-screen-xl text-center lg:py-16">
+        <h2
+          class="mb-4 text-4xl font-extrabold tracking-tight leading-none text-gray-900 md:text-5xl lg:text-6xl"
+        >
+          ¡Hola a todos los profesionales de la salud 🩹 y amantes de la moda
+          médica 🥼!
+        </h2>
+        <p
+          class="mb-8 text-lg font-normal text-gray-500 lg:text-xl sm:px-16 lg:px-48"
+        >
+          En Uniformes Médicos 2015 estamos emocionados de darles la bienvenida
+          a nuestra tienda virtual especializada en la venta de uniformes y
+          batas médicas de la más alta calidad. ¡Aquí encontrarás la combinación
+          perfecta entre estilo, comodidad y funcionalidad
+        </p>
+      </div>
+    </section>
+
+    <ul role="list" class="link-card-grid">
+      <!-- <MainCard
+        producto={data.data[0]}
+        serverUrl={STRAPI_URL as string}
+      />
+      <MainCard
+        genero={data.data[6].generoproducto={data.data[6].generoproducto  }
+        href="/caballeros"
+        foto={data.data[6].fotos[0]}
+      /> -->
+      {
+        uniformes.map((uniforme: Producto) => (
+          <MainCard
+            producto={uniforme}
+            serverURL="https://strapi.frakodev.com"
+          />
+        ))
+      }
+    </ul>
+  </main>
+</Layout>
+
+<style>
+  main {
+    margin: auto;
+    padding: 1rem;
+    width: 800px;
+    max-width: calc(100% - 2rem);
+    color: black;
+    font-size: 20px;
+    line-height: 1.6;
+  }
+  h1 {
+    font-size: 4rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    margin-bottom: 1em;
+  }
+  .astro-a {
+    position: absolute;
+    top: -32px;
+    left: 50%;
+    transform: translatex(-50%);
+    width: 220px;
+    height: auto;
+    z-index: -1;
+  }
+  .text-gradient {
+    background-image: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 400%;
+    background-position: 0%;
+  }
+
+  .link-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
+    gap: 2rem;
+    padding: 0;
+  }
+</style>

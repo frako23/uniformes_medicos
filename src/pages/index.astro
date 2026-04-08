@@ -1,74 +1,315 @@
 ---
+import LikeButton from "../components/LikeButton.astro";
 import Layout from "../layouts/Layout.astro";
-import MainCard from "../components/MainCard.astro";
-import data from '../../public/data.json'
-console.log(data);
+import type { Producto } from "../utils/types";
+
+const STRAPI_URL = import.meta.env.STRAPI_URL || "https://strapi.frakodev.com";
+const STRAPI_TOKEN = import.meta.env.STRAPI_TOKEN;
+
+const url = `${STRAPI_URL}/api/productos?populate=*`;
+const response = await fetch(url, {
+  headers: {
+    Authorization: `Bearer ${STRAPI_TOKEN}`,
+  },
+});
+const { data: uniformes } = await response.json();
+
+// Estilos de género que ya definimos
+const genderStylesPills = {
+  Dama: {
+    icon: "female",
+    bg: "bg-pink-50",
+    text: "text-pink-700",
+    border: "border-pink-200",
+  },
+  Caballero: {
+    icon: "male",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    border: "border-blue-200",
+  },
+  Unisex: {
+    icon: "group",
+    bg: "bg-slate-50",
+    text: "text-slate-700",
+    border: "border-slate-200",
+  },
+};
+
+// Categorías para los Chips
+const categories = [
+  "Todo",
+  "Bata",
+  "Uniforme bota recta",
+  "Uniforme bota Jogger",
+  "Top",
+  "Top estampado",
+  "Mono",
+  "Chaqueta",
+  "Bata larga sin cuello",
+  "Bata con cierre y cuello redondo",
+  "Bata con cierre y cuello normal corta",
+  "Bata con cierre y cuello normal larga",
+  "Chaqueta gruesa",
+  "Chaqueta reversible",
+  "Pantalon",
+  "Uniforme Enfermera",
+  "Blusas Enfermera",
+  "Uniforme Odontológico",
+  "Uniforme bota ajustable",
+];
+console.log(uniformes);
+
+const genderStyles = {
+  Dama: {
+    icon: "female",
+    bg: "bg-pink-50",
+    text: "text-pink-700",
+    border: "border-pink-200",
+  },
+  Caballero: {
+    icon: "male",
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    border: "border-blue-200",
+  },
+  Unisex: {
+    icon: "group",
+    bg: "bg-slate-50",
+    text: "text-slate-700",
+    border: "border-slate-200",
+  },
+};
 ---
 
-<Layout title="Bienvenido a Uniformes Médicos 2015">
-  <main>
-
-	
-
-<section class="bg-white ">
-    <div class="py-8 px-4 mx-auto max-w-screen-xl text-center lg:py-16">
-        <h2 class="mb-4 text-4xl font-extrabold tracking-tight leading-none text-gray-900 md:text-5xl lg:text-6xl ">¡Hola a todos los profesionales de la salud 🩹 y amantes de la moda médica 🥼!</h2>
-        <p class="mb-8 text-lg font-normal text-gray-500 lg:text-xl sm:px-16 lg:px-48 ">
-			En Uniformes Médicos 2015 estamos emocionados de darles la bienvenida a
-        nuestra tienda virtual especializada en la venta de uniformes y batas
-        médicas de la más alta calidad. ¡Aquí encontrarás la combinación
-        perfecta entre estilo, comodidad y funcionalidad
-		</p>
+<Layout title="The Clinical Editorial - Feed">
+  <header
+    class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md px-6 py-3 border-b border-slate-100"
+  >
+    <div class="flex justify-between items-center">
+      <!-- <div class="flex items-center gap-4">
+        <button class="p-2 rounded-full hover:bg-slate-100 transition-colors">
+          <span class="material-symbols-outlined text-[#005d90]">search</span>
+        </button>
+      </div> -->
+      <h1
+        class="text-lg font-extrabold text-[#005d90] tracking-tighter font-['Manrope']"
+      >
+        Uniformes Médicos 2015
+      </h1>
+      <div class="flex items-center gap-2">
+        <button class="p-2 rounded-full hover:bg-slate-100 transition-colors">
+          <span class="material-symbols-outlined text-[#005d90]"
+            >shopping_bag</span
+          >
+        </button>
+      </div>
     </div>
-</section>
 
-    <ul role="list" class="link-card-grid">
+    <section class="px-6 py-4 max-w-6xl mx-auto">
+      <div class="relative group">
+        <!-- <div
+          class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+        >
+          <span
+            class="material-symbols-outlined text-[#005d90] text-sm opacity-70"
+          >
+            filter_list
+          </span>
+        </div> -->
 
-	  <MainCard genero={data.data[0].genero} href="/damas" foto={data.data[0].fotos[0]}/>
-	  <MainCard genero={data.data[6].genero} href="/caballeros" foto={data.data[6].fotos[0]}/>
-    </ul>
-	
+        <select
+          id="category-select"
+          class="block w-full pl-10 pr-10 py-3 text-[11px] font-bold font-['Manrope'] uppercase tracking-widest bg-white border border-slate-200 text-slate-700 rounded-xl shadow-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#005d90]/20 focus:border-[#005d90] transition-all cursor-pointer"
+        >
+          {
+            categories.map((cat) => (
+              <option
+                value={cat === "Todo" ? "" : cat}
+                class="font-sans normal-case"
+              >
+                {cat}
+              </option>
+            ))
+          }
+        </select>
+
+        <div
+          class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
+        >
+          <span class="material-symbols-outlined text-slate-400 text-sm">
+            unfold_more
+          </span>
+        </div>
+      </div>
+    </section>
+  </header>
+
+  <main class="pt-16 pb-24 max-w-8xl mx-auto">
+    <!-- <section
+      class="py-6 overflow-x-auto no-scrollbar flex gap-6 px-6 bg-[#f7f9fb]"
+    >
+      {
+        ["Damas", "Caballeros", "Unisex"].map((cat) => (
+          <div class="flex flex-col items-center gap-2 flex-shrink-0">
+            <div class="w-16 h-16 rounded-full p-0.5 bg-gradient-to-tr from-[#005d90] to-[#7a4c8f]">
+              <div class="w-full h-full rounded-full border-2 border-white overflow-hidden bg-slate-200">
+                <div class="w-full h-full bg-slate-300" />
+              </div>
+            </div>
+            <span class="text-[10px] font-['Manrope'] font-bold text-[#191c1e] uppercase tracking-widest text-center">
+              {cat}
+            </span>
+          </div>
+        ))
+      }
+    </section> -->
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 px-4 max-w-6xl mx-auto">
+    </div>
+    <div
+      class="grid grid-cols-1 md:grid-cols-2 gap-4 px-0 md:px-4 max-w-6xl mx-auto"
+    >
+      {
+        uniformes.map((product: Producto) => {
+          const style = genderStyles[product.Genero] || genderStyles.Unisex;
+
+          return (
+            <article
+              class={`${style.border} overflow-hidden md:rounded-xl shadow-sm border border-slate-100`}
+            >
+              <div class=" items-center gap-3 p-4">
+                <div class="flex items-center gap-3">
+                  {" "}
+                  {/* items-center alinea verticalmente todo el contenido */}
+                  <div
+                    class={`flex items-center justify-center w-9 h-9 rounded-xl border ${style.bg} ${style.border} transition-all duration-300 shadow-sm flex-shrink-0`}
+                  >
+                    <span
+                      class={`material-symbols-outlined ${style.text} !text-[20px] font-light leading-none`}
+                    >
+                      {style.icon}
+                    </span>
+                  </div>
+                  <span
+                    class={`text-[10px] font-bold uppercase tracking-[0.1em] leading-none ${style.text}`}
+                  >
+                    {product.Genero}
+                  </span>
+                </div>
+
+                <div>
+                  <p class="text-sm font-bold font-['Manrope'] leading-tight">
+                    {product.Fabricantes}
+                  </p>
+                  <p class="text-[10px] text-[#404850] font-medium tracking-wide uppercase">
+                    {product.Marca}
+                  </p>
+                </div>
+              </div>
+
+              <div class="aspect-[4/5] w-full bg-slate-100 overflow-hidden">
+                <img
+                  src={`${STRAPI_URL}${product.Foto[0].url}`}
+                  alt={product.Tipo}
+                  class="w-full h-full object-cover"
+                />
+              </div>
+
+              <div class="p-4">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center gap-4">
+                    <LikeButton product={product} />
+                    <button class="active:scale-90 transition-transform">
+                      <span class="material-symbols-outlined text-slate-500">
+                        shopping_bag
+                      </span>
+                    </button>
+                    <button class="active:scale-90 transition-transform">
+                      <span class="material-symbols-outlined text-slate-500">
+                        share
+                      </span>
+                    </button>
+                  </div>
+                  <p class="text-lg font-bold font-['Manrope'] text-[#005d90]">
+                    {`$${product.Precio}`}
+                  </p>
+                </div>
+                <div class="space-y-1">
+                  <p class="text-sm leading-relaxed text-[#191c1e]">
+                    <span class="font-bold">Tipo:</span> {product.Tipo}
+                  </p>
+                  <p class="text-sm leading-relaxed text-[#191c1e]">
+                    <span class="font-bold">Fabricante:</span>{" "}
+                    {product.Fabricantes}
+                  </p>{" "}
+                  <p class="text-sm leading-relaxed text-[#191c1e]">
+                    <span class="font-bold">Marca:</span> {product.Marca}
+                  </p>{" "}
+                  <p class="text-sm leading-relaxed text-[#191c1e]">
+                    <span class="font-bold">Color:</span> {product.Color}
+                  </p>
+                </div>
+              </div>
+            </article>
+          );
+        })
+      }
+    </div>
   </main>
+
+  <nav
+    class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pt-2 bg-white z-50 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border-t border-slate-100"
+  >
+    <a
+      class="flex flex-col items-center justify-center bg-sky-50 text-pink-700 rounded-2xl px-5 py-2"
+      href="#"
+    >
+      <span
+        class="material-symbols-outlined"
+        style="font-variation-settings: 'FILL' 1;">female</span
+      >
+      <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
+        >Dama</span
+      >
+    </a>
+    <a
+      class="flex flex-col items-center justify-center text-slate-400 px-5 py-2"
+      href="#"
+    >
+      <span class="material-symbols-outlined">male</span>
+      <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
+        >Caballero</span
+      >
+    </a>
+    <a
+      class="flex flex-col items-center justify-center text-slate-400 px-5 py-2"
+      href="#"
+    >
+      <span class="material-symbols-outlined">group</span>
+      <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
+        >Unisex</span
+      >
+    </a>
+  </nav>
+
+  <div class="fixed right-6 bottom-28 z-40">
+    <a
+      href="https://wa.me/584120000000?text=Hola!%20Me%20interesa%20uno%20de%20sus%20uniformes"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="w-14 h-14 rounded-full bg-gradient-to-br from-[#25D366] to-[#1DA851] text-white shadow-xl flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+    >
+      <span class="material-symbols-outlined text-3xl">chat</span>
+    </a>
+  </div>
 </Layout>
 
 <style>
-  main {
-    margin: auto;
-    padding: 1rem;
-    width: 800px;
-    max-width: calc(100% - 2rem);
-    color: black;
-    font-size: 20px;
-    line-height: 1.6;
-  }
-  h1 {
-	font-size: 4rem;
-	font-weight: 700;
-	line-height: 1;
-	text-align: center;
-	margin-bottom: 1em;
-  }
-  .astro-a {
-    position: absolute;
-    top: -32px;
-    left: 50%;
-    transform: translatex(-50%);
-    width: 220px;
-    height: auto;
-    z-index: -1;
-  }
-  .text-gradient {
-    background-image: var(--accent-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-size: 400%;
-    background-position: 0%;
-  }
-
-  .link-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
-    gap: 2rem;
-    padding: 0;
+  /* Limpiar estilos nativos del select en iOS para que se vea igual en todos lados */
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
   }
 </style>

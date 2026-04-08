@@ -1,0 +1,65 @@
+---
+// ProductCard.astro
+const { product } = Astro.props;
+---
+
+<article class="border border-slate-100 overflow-hidden">
+  <button
+    data-product-id={product.id}
+    class="favorite-btn active:scale-90 transition-all duration-300 rounded-full hover:bg-red-50"
+  >
+    <span
+      class="material-symbols-outlined text-slate-500 select-none transition-colors duration-300"
+      style="font-variation-settings: 'FILL' 0;"
+    >
+      favorite
+    </span>
+  </button>
+</article>
+
+<script>
+  import { favoritesStore, toggleFavorite } from "../stores/favoritesStore";
+
+  function updateIcons(favorites) {
+    const buttons = document.querySelectorAll(".favorite-btn");
+    buttons.forEach((btn) => {
+      const id = btn.getAttribute("data-product-id");
+      const icon = btn.querySelector(
+        ".material-symbols-outlined",
+      ) as HTMLElement;
+
+      if (icon && id) {
+        if (favorites.includes(id)) {
+          // Estado Activo (Rojo y Relleno)
+          icon.classList.add("text-red-500");
+          icon.classList.remove("text-slate-500");
+          icon.style.fontVariationSettings = "'FILL' 1";
+        } else {
+          // Estado Inactivo (Gris y Vacío)
+          icon.classList.remove("text-red-500");
+          icon.classList.add("text-slate-500");
+          icon.style.fontVariationSettings = "'FILL' 0";
+        }
+      }
+    });
+  }
+
+  // Escuchar cambios
+  favoritesStore.subscribe((favorites) => {
+    updateIcons(favorites);
+  });
+
+  // Manejar el clic con delegación de eventos
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const btn = target.closest(".favorite-btn");
+
+    if (btn) {
+      e.preventDefault();
+      const id = btn.getAttribute("data-product-id");
+      if (id) {
+        toggleFavorite(id);
+      }
+    }
+  });
+</script>
