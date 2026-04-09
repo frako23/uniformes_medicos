@@ -7,13 +7,13 @@ import type { Producto } from "../../utils/types";
 
 // 1. OBLIGATORIO: getStaticPaths le dice a Astro qué páginas existen
 export async function getStaticPaths() {
-  const { PUBLIC_STRAPI_TOKEN } = import.meta.env;
+  const { STRAPI_TOKEN } = import.meta.env;
 
   const response = await fetch(
     "https://strapi.frakodev.com/api/productos?populate=*",
     {
       headers: {
-        Authorization: `Bearer ${PUBLIC_STRAPI_TOKEN}`,
+        Authorization: `Bearer ${STRAPI_TOKEN}`,
       },
     },
   );

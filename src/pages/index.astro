@@ -8,13 +8,13 @@ import Layout from "../layouts/Layout.astro";
 import type { Producto } from "../utils/types";
 
 const STRAPI_URL = import.meta.env.STRAPI_URL || "https://strapi.frakodev.com";
-const PUBLIC_STRAPI_TOKEN = import.meta.env.PUBLIC_STRAPI_TOKEN;
+const STRAPI_TOKEN = import.meta.env.STRAPI_TOKEN;
 
 // El parámetro pagination[limit]=-1 desactiva el límite de 25
 const url = `${STRAPI_URL}/api/productos?populate=*&pagination[pageSize]=200`;
 const response = await fetch(url, {
   headers: {
-    Authorization: `Bearer ${PUBLIC_STRAPI_TOKEN}`,
+    Authorization: `Bearer ${STRAPI_TOKEN}`,
   },
 });
 const { data: uniformes } = await response.json();

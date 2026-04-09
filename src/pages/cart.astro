@@ -73,8 +73,8 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   import { favoritesStore } from "../stores/favoritesStore";
-  import { renderEmptyCart } from "../utils/fucntions"; // Asegúrate de que el path y nombre sean correctos
-  import type { Producto } from "../utils/types";
+import { renderEmptyCart } from "../utils/fucntions"; // Asegúrate de que el path y nombre sean correctos
+import type { Producto } from "../utils/types";
 
   // Extiende la interfaz Window para incluir removeItem
   declare global {
@@ -83,7 +83,7 @@ import Layout from "../layouts/Layout.astro";
     }
   }
 
-  const { PUBLIC_STRAPI_TOKEN } = import.meta.env;
+  const { STRAPI_TOKEN } = import.meta.env;
   const URL = "https://strapi.frakodev.com";
   // 1. Definimos removeItem de forma GLOBAL para que el onclick lo encuentre
   window.removeItem = (id: number) => {
@@ -122,7 +122,7 @@ import Layout from "../layouts/Layout.astro";
     try {
       const response = await fetch(finalUrl, {
         headers: {
-          Authorization: `Bearer ${PUBLIC_STRAPI_TOKEN}`,
+          Authorization: `Bearer ${STRAPI_TOKEN}`,
         },
       });
 
