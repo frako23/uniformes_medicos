@@ -1,15 +1,16 @@
 ---
+import FavBag from "../components/FavBag.astro";
 import LikeButton from "../components/LikeButton.astro";
 import Layout from "../layouts/Layout.astro";
 import type { Producto } from "../utils/types";
 
 const STRAPI_URL = import.meta.env.STRAPI_URL || "https://strapi.frakodev.com";
-const STRAPI_TOKEN = import.meta.env.STRAPI_TOKEN;
+const PUBLIC_STRAPI_TOKEN = import.meta.env.PUBLIC_STRAPI_TOKEN;
 
 const url = `${STRAPI_URL}/api/productos?populate=*`;
 const response = await fetch(url, {
   headers: {
-    Authorization: `Bearer ${STRAPI_TOKEN}`,
+    Authorization: `Bearer ${PUBLIC_STRAPI_TOKEN}`,
   },
 });
 const { data: uniformes } = await response.json();
@@ -80,6 +81,20 @@ const genderStyles = {
     border: "border-slate-200",
   },
 };
+
+const sizes = [
+  { label: "XS", status: "In stock", color: "slate", disabled: false },
+  { label: "S", status: "In stock", color: "slate", disabled: false },
+  {
+    label: "M",
+    status: "2 left!",
+    color: "primary",
+    disabled: false,
+    selected: true,
+  },
+  { label: "L", status: "15 left", color: "slate", disabled: false },
+  { label: "XL", status: "Sold Out", color: "disabled", disabled: true },
+];
 ---
 
 <Layout title="The Clinical Editorial - Feed">
@@ -93,17 +108,11 @@ const genderStyles = {
         </button>
       </div> -->
       <h1
-        class="text-lg font-extrabold text-[#005d90] tracking-tighter font-['Manrope']"
+        class="text-lg font-extrabold text-[#0077B6] tracking-tighter font-['Manrope']"
       >
-        Uniformes Médicos 2015
+        <span class="text-[#9D6CB2]">Uniformes</span> Médicos 2015
       </h1>
-      <div class="flex items-center gap-2">
-        <button class="p-2 rounded-full hover:bg-slate-100 transition-colors">
-          <span class="material-symbols-outlined text-[#005d90]"
-            >shopping_bag</span
-          >
-        </button>
-      </div>
+    <FavBag />
     </div>
 
     <section class="px-6 py-4 max-w-6xl mx-auto">
@@ -168,7 +177,7 @@ const genderStyles = {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 px-4 max-w-6xl mx-auto">
     </div>
     <div
-      class="grid grid-cols-1 md:grid-cols-2 gap-4 px-0 md:px-4 max-w-6xl mx-auto"
+      class="grid grid-cols-1 md:grid-cols-2 gap-4 px-0 md:px-4 max-w-6xl mx-auto mt-16"
     >
       {
         uniformes.map((product: Producto) => {
@@ -178,7 +187,7 @@ const genderStyles = {
             <article
               class={`${style.border} overflow-hidden md:rounded-xl shadow-sm border border-slate-100`}
             >
-              <div class=" items-center gap-3 p-4">
+              <div class="flex justify-between items-center gap-3 p-4">
                 <div class="flex items-center gap-3">
                   {" "}
                   {/* items-center alinea verticalmente todo el contenido */}
@@ -249,6 +258,38 @@ const genderStyles = {
                   <p class="text-sm leading-relaxed text-[#191c1e]">
                     <span class="font-bold">Color:</span> {product.Color}
                   </p>
+                </div>
+              </div>
+
+              <div class="px-6 py-4">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">
+                  Tallas disponibles
+                </p>
+
+                <div class="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                  {sizes.map((size) => (
+                    <button
+                      disabled={size.disabled}
+                      class={`flex-shrink-0 px-3 py-2 rounded-lg border flex flex-col items-center min-w-[64px] transition-all
+            ${
+              size.disabled
+                ? "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
+                : size.selected
+                  ? "border-2 border-[#005d90] bg-[#005d90]/5 text-[#005d90]"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-[#005d90] active:scale-95"
+            }
+          `}
+                    >
+                      <span class="text-xs font-bold font-['Manrope']">
+                        {size.label}
+                      </span>
+                      <span
+                        class={`text-[9px] font-medium italic ${size.selected ? "opacity-80" : "text-slate-400"}`}
+                      >
+                        {size.status}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </article>

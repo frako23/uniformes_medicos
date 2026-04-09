@@ -1,0 +1,51 @@
+<div class="flex items-center gap-2">
+  <a
+    href="/cart"
+    class="relative p-2 rounded-full hover:bg-slate-100 transition-colors group"
+  >
+    <span class="material-symbols-outlined text-[#005d90]"> shopping_bag </span>
+
+    <div
+      id="fav-badge"
+      class="absolute top-1 right-0 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center scale-0 transition-transform duration-300 border-2 border-white"
+    >
+      0
+    </div>
+  </a>
+</div>
+
+<script>
+  import { favoritesStore } from "../stores/favoritesStore";
+
+  // Referencia al elemento del badge
+  const badge = document.getElementById("fav-badge");
+
+  if (badge) {
+    // Nos suscribimos a los cambios del store
+    favoritesStore.subscribe((favorites) => {
+      const count = favorites.length;
+
+      // Actualizamos el texto
+      badge.textContent = count.toString();
+
+      // Si hay elementos, mostramos el badge; si no, lo ocultamos
+      if (count > 0) {
+        badge.classList.remove("scale-0");
+        badge.classList.add("scale-100");
+
+        // Efecto opcional de "pop" cada vez que cambia
+        badge.animate(
+          [
+            { transform: "scale(1)" },
+            { transform: "scale(1.3)" },
+            { transform: "scale(1)" },
+          ],
+          { duration: 200 },
+        );
+      } else {
+        badge.classList.remove("scale-100");
+        badge.classList.add("scale-0");
+      }
+    });
+  }
+</script>

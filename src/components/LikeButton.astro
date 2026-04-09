@@ -20,7 +20,7 @@ const { product } = Astro.props;
 <script>
   import { favoritesStore, toggleFavorite } from "../stores/favoritesStore";
 
-  function updateIcons(favorites) {
+  function updateIcons(favorites: readonly string[]) {
     const buttons = document.querySelectorAll(".favorite-btn");
     buttons.forEach((btn) => {
       const id = btn.getAttribute("data-product-id");
