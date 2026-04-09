@@ -1,5 +1,8 @@
 {
   "name": "uniformes-medicos-catalogo",
+  "engines": {
+    "node": ">=20.x"
+  },
   "type": "module",
   "version": "0.0.1",
   "scripts": {
