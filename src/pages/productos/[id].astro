@@ -1,90 +1,137 @@
 ---
-import InteractiveCard from "../../components/InteractiveCard.tsx";
+import LikeButton from "../../components/LikeButton.astro";
+import ShareButton from "../../components/ShareButton.astro";
+import SizeStock from "../../components/SizeStock.astro";
 import Layout from "../../layouts/Layout.astro";
-import data from "../../../public/data.json";
+import type { Producto } from "../../utils/types";
 
-console.log(data.data);
+// 1. OBLIGATORIO: getStaticPaths le dice a Astro qué páginas existen
+export async function getStaticPaths() {
+  const { PUBLIC_STRAPI_TOKEN } = import.meta.env;
 
-interface Producto {
-    color: string;
-    fotos: string[];
-    genero: string;
-    precio: string;
-    id: string;
-  }
+  const response = await fetch(
+    "https://strapi.frakodev.com/api/productos?populate=*",
+    {
+      headers: {
+        Authorization: `Bearer ${PUBLIC_STRAPI_TOKEN}`,
+      },
+    },
+  );
 
-export function getStaticPaths () {
-  return  data.data.flatMap((dato) => [{ params: { id: dato.id } }]);
-};
+  const { data } = await response.json();
 
-const { id } = Astro.params;
+  // Mapeamos los productos para que Astro cree una ruta por cada ID
+  return data.map((item: Producto) => ({
+    params: { id: item.id.toString() },
+    props: {
+      producto: item,
+      id: item.id,
+    },
+  }));
+}
 
-const producto :Producto | undefined = data.data.find((dato) => dato.id === id) 
+interface Props {
+  producto: Producto;
+  id: number;
+}
 
+// 2. Capturamos los datos que pasamos en getStaticPaths
+const { producto } = Astro.props;
+const URL_BASE = "https://strapi.frakodev.com";
 
+// Verificamos la estructura de tu imagen en Strapi
+const imagenUrl = producto.Foto?.[0]?.url
+  ? `${URL_BASE}${producto.Foto[0].url}`
+  : "/placeholder.jpg";
+
+// Construimos el mensaje con saltos de línea naturales
+const message = `¡Hola! Me interesa el siguiente producto:
+
+*${producto.Tipo}*
+Marca: ${producto.Marca}
+Color: ${producto.Color}
+Precio: $${producto.Precio}`;
+
+// Codificamos para que los espacios y saltos de línea funcionen en la URL
+const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(message)}`;
 ---
 
-<Layout title={`${producto?.genero} - ${producto?.color} `}>
-  <main>
-<InteractiveCard producto={producto} client:only/>
-
-    <div
-      class="w-full max-w-4xl p-4 bg-white border border-gray-200 rounded-lg shadow sm:p-8"
+<Layout title={`${producto.Marca} | The Clinical Editorial`}>
+  <main class="max-w-4xl mx-auto px-6 pt-24 pb-12">
+    <a
+      href="/"
+      class="inline-flex items-center text-slate-500 hover:text-[#005d90] mb-8 transition-colors"
     >
-      <h5 class="mb-4 text-xl font-medium text-gray-500">
-        {producto?.genero} - {producto?.color}
-      </h5>
-      <div class="flex items-baseline text-gray-900">
-        <span class="text-3xl font-semibold">$</span>
-        <span class="text-5xl font-extrabold tracking-tight"
-          >{producto?.precio}</span
-        >
-      </div>
-      <a
-        href={`https://api.whatsapp.com/send?phone=+584241468579&text=Hola!%20estoy%20interesad@%20en%20este%20uniforme%0A%0Ahttps://uniformes-medicos.vercel.app/productos/${id}`}
-        class="text-white mt-7 bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-200 font-medium rounded-lg text-sm px-5 py-2.5 inline-flex justify-center w-full text-center"
-        >Comprar
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 18 24"
-          style="fill: white;transform: ;msFilter:;"
-          ><path
-            d="M5 22h14c1.103 0 2-.897 2-2V9a1 1 0 0 0-1-1h-3V7c0-2.757-2.243-5-5-5S7 4.243 7 7v1H4a1 1 0 0 0-1 1v11c0 1.103.897 2 2 2zM9 7c0-1.654 1.346-3 3-3s3 1.346 3 3v1H9V7zm-4 3h2v2h2v-2h6v2h2v-2h2l.002 10H5V10z"
-          ></path></svg
-        ></a
+      <span class="material-symbols-outlined mr-2">arrow_back</span>
+      Volver al catálogo
+    </a>
+
+    <div class="grid md:grid-cols-2 gap-12">
+      <div
+        class="rounded-3xl overflow-hidden bg-slate-100 aspect-[3/4] shadow-sm"
       >
-      <!-- <button
-        type="button"
-        class="text-white mt-7 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-200 font-medium rounded-lg text-sm px-5 py-2.5 inline-flex justify-center w-full text-center"
-        >Compartir</button
-      > -->
+        <img
+          src={imagenUrl}
+          alt={producto.Tipo || "Producto"}
+          class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+        />
+      </div>
+
+      <div class="flex flex-col">
+        <span
+          class="text-sky-700 font-bold uppercase tracking-widest text-xs mb-2"
+        >
+          {producto.Tipo}
+        </span>
+        <h1
+          class="text-4xl font-headline font-extrabold text-slate-900 mb-4 leading-tight"
+        >
+          {producto.Fabricantes}
+          {producto.Marca}
+        </h1>
+        <p class="text-3xl font-bold text-[#005d90] mb-2">
+          ${producto.Precio.toFixed(2)}
+        </p>
+
+        <SizeStock tallaStock={producto.Talla} />
+
+        <div class="flex gap-4 mt-auto">
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            class="flex-1 bg-[#005d90] flex justify-center items-center text-white py-4 rounded-xl font-bold hover:bg-[#004a73] shadow-lg shadow-sky-100 transition-all active:scale-95"
+          >
+            Comprar ahora
+          </a>
+          <button
+            class="share-button p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors active:scale-95"
+            data-title={`${producto.Tipo} - ${producto.Fabricantes} ${producto.Marca}`}
+          >
+            <span class="material-symbols-outlined text-slate-600">share</span>
+          </button>
+        </div>
+      </div>
     </div>
   </main>
-
-  <style>
-    main {
-      margin: auto;
-      padding: 1rem;
-      width: 800px;
-      max-width: calc(100% - 2rem);
-      color: black;
-      font-size: 20px;
-      line-height: 1.6;
-    }
-    h1 {
-      font-size: 4rem;
-      font-weight: 700;
-      line-height: 1;
-      text-align: center;
-      margin-bottom: 1em;
-    }
-    .link-card-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
-      gap: 2rem;
-      padding: 0;
-    }
-  </style>
 </Layout>
+
+<script>
+  document.addEventListener("click", async (event) => {
+    const btn = (event.target as HTMLElement).closest(".share-button");
+    if (!btn) return;
+
+    const title = btn.getAttribute("data-title") || "The Clinical Editorial";
+    const url = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") console.error(err);
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      alert("Enlace del producto copiado");
+    }
+  });
+</script>

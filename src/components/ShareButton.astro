@@ -1,0 +1,48 @@
+---
+const { product } = Astro.props;
+// Preparamos los datos
+const shareTitle = `${product.Tipo} - ${product.Fabricantes} ${product.Marca}`;
+const shareMessage = `¡Mira este uniforme en The Clinical Editorial!`;
+---
+
+<button
+  class="share-button active:scale-90 transition-transform"
+  data-title={shareTitle}
+  data-text={shareMessage}
+>
+  <span class="material-symbols-outlined text-slate-500">share</span>
+</button>
+
+<script>
+  // Escuchamos en el documento para que funcione incluso si el contenido cambia
+  document.addEventListener("click", async (event) => {
+    // Buscamos si el clic (o el hijo del clic, como el icono) pertenece al botón
+    const btn = (event.target as HTMLElement).closest(".share-button");
+
+    if (!btn) return;
+
+    // Extraemos los datos de los atributos 'data-' del botón
+    const title = btn.getAttribute("data-title") || "The Clinical Editorial";
+    const text = btn.getAttribute("data-text") || "";
+    const url = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+      } catch (err) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          console.error("Error al compartir:", err);
+        }
+      }
+    } else {
+      // Fallback: Copiar al portapapeles
+      try {
+        await navigator.clipboard.writeText(url);
+        // Opcional: Cambiar el icono o mostrar un mensaje temporal
+        alert("Enlace copiado al portapapeles");
+      } catch (err) {
+        console.error("Error al copiar:", err);
+      }
+    }
+  });
+</script>

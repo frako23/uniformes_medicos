@@ -1,0 +1,22 @@
+---
+const { product } = Astro.props;
+
+// Construimos el mensaje con saltos de línea naturales
+const message = `¡Hola! Me interesa el siguiente producto:
+
+*${product.Tipo}*
+Marca: ${product.Marca}
+Color: ${product.Color}
+Precio: $${product.Precio}`;
+
+// Codificamos para que los espacios y saltos de línea funcionen en la URL
+const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(message)}`;
+---
+
+<a
+  href={whatsappUrl}
+  target="_blank"
+  class="active:scale-90 transition-transform"
+>
+  <span class="material-symbols-outlined text-slate-500"> shopping_cart </span>
+</a>

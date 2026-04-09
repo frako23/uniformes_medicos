@@ -1,13 +1,17 @@
 ---
+import BuyButton from "../components/BuyButton.astro";
 import FavBag from "../components/FavBag.astro";
 import LikeButton from "../components/LikeButton.astro";
+import ShareButton from "../components/ShareButton.astro";
+import SizeStock from "../components/SizeStock.astro";
 import Layout from "../layouts/Layout.astro";
 import type { Producto } from "../utils/types";
 
 const STRAPI_URL = import.meta.env.STRAPI_URL || "https://strapi.frakodev.com";
 const PUBLIC_STRAPI_TOKEN = import.meta.env.PUBLIC_STRAPI_TOKEN;
 
-const url = `${STRAPI_URL}/api/productos?populate=*`;
+// El parámetro pagination[limit]=-1 desactiva el límite de 25
+const url = `${STRAPI_URL}/api/productos?populate=*&pagination[pageSize]=200`;
 const response = await fetch(url, {
   headers: {
     Authorization: `Bearer ${PUBLIC_STRAPI_TOKEN}`,
@@ -15,29 +19,6 @@ const response = await fetch(url, {
 });
 const { data: uniformes } = await response.json();
 
-// Estilos de género que ya definimos
-const genderStylesPills = {
-  Dama: {
-    icon: "female",
-    bg: "bg-pink-50",
-    text: "text-pink-700",
-    border: "border-pink-200",
-  },
-  Caballero: {
-    icon: "male",
-    bg: "bg-blue-50",
-    text: "text-blue-700",
-    border: "border-blue-200",
-  },
-  Unisex: {
-    icon: "group",
-    bg: "bg-slate-50",
-    text: "text-slate-700",
-    border: "border-slate-200",
-  },
-};
-
-// Categorías para los Chips
 const categories = [
   "Todo",
   "Bata",
@@ -59,7 +40,6 @@ const categories = [
   "Uniforme Odontológico",
   "Uniforme bota ajustable",
 ];
-console.log(uniformes);
 
 const genderStyles = {
   Dama: {
@@ -81,20 +61,6 @@ const genderStyles = {
     border: "border-slate-200",
   },
 };
-
-const sizes = [
-  { label: "XS", status: "In stock", color: "slate", disabled: false },
-  { label: "S", status: "In stock", color: "slate", disabled: false },
-  {
-    label: "M",
-    status: "2 left!",
-    color: "primary",
-    disabled: false,
-    selected: true,
-  },
-  { label: "L", status: "15 left", color: "slate", disabled: false },
-  { label: "XL", status: "Sold Out", color: "disabled", disabled: true },
-];
 ---
 
 <Layout title="The Clinical Editorial - Feed">
@@ -112,7 +78,7 @@ const sizes = [
       >
         <span class="text-[#9D6CB2]">Uniformes</span> Médicos 2015
       </h1>
-    <FavBag />
+      <FavBag />
     </div>
 
     <section class="px-6 py-4 max-w-6xl mx-auto">
@@ -185,7 +151,9 @@ const sizes = [
 
           return (
             <article
-              class={`${style.border} overflow-hidden md:rounded-xl shadow-sm border border-slate-100`}
+              data-gender={product.Genero}
+              data-category={product.Tipo}
+              class={`product-card ${style.border} overflow-hidden md:rounded-xl shadow-sm border border-slate-100`}
             >
               <div class="flex justify-between items-center gap-3 p-4">
                 <div class="flex items-center gap-3">
@@ -217,28 +185,68 @@ const sizes = [
                 </div>
               </div>
 
-              <div class="aspect-[4/5] w-full bg-slate-100 overflow-hidden">
-                <img
-                  src={`${STRAPI_URL}${product.Foto[0].url}`}
-                  alt={product.Tipo}
-                  class="w-full h-full object-cover"
-                />
+              <div class="relative group overflow-hidden">
+                <button
+                  class="prev-btn absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm text-slate-800 hidden md:group-hover:flex items-center justify-center shadow-md hover:bg-white transition-all active:scale-90"
+                  data-direction="-1"
+                >
+                  <span class="material-symbols-outlined !text-xl">
+                    chevron_left
+                  </span>
+                </button>
+
+                <div class="instagram-slider no-scrollbar">
+                  {product.Foto &&
+                    product.Foto.map((foto, index) => (
+                      <div class="slider-item" data-index={index}>
+                        <img
+                          src={`${STRAPI_URL}${foto.url}`}
+                          alt={`${product.Tipo} - ${index + 1}`}
+                          class="w-full h-full object-cover pointer-events-none"
+                          loading="lazy"
+                        />
+                      </div>
+                    ))}
+                </div>
+
+                <button
+                  class="next-btn absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm text-slate-800 hidden md:group-hover:flex items-center justify-center shadow-md hover:bg-white transition-all active:scale-90"
+                  data-direction="1"
+                >
+                  <span class="material-symbols-outlined !text-xl">
+                    chevron_right
+                  </span>
+                </button>
+
+                {product.Foto && product.Foto.length > 1 && (
+                  <div class="absolute bottom-0 left-0 w-full h-12 pointer-events-none flex items-end justify-center pb-3 bg-gradient-to-t from-black/40 to-transparent">
+                    <div class="flex gap-1.5 dot-container">
+                      {product.Foto.map((_, i) => (
+                        <div
+                          data-index={i}
+                          class={`w-1.5 h-1.5 rounded-full bg-white shadow-sm transition-all duration-300 ${i === 0 ? "opacity-100 scale-110" : "opacity-40"}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div class="p-4">
+              <div class="px-4 pt-4">
                 <div class="flex items-center justify-between mb-4">
                   <div class="flex items-center gap-4">
                     <LikeButton product={product} />
-                    <button class="active:scale-90 transition-transform">
-                      <span class="material-symbols-outlined text-slate-500">
-                        shopping_bag
+                    <BuyButton product={product} />
+                    <ShareButton product={product} />
+                    <a
+                      href={`/productos/${product.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <span class="material-symbols-outlined text-slate-500 ">
+                        open_in_new
                       </span>
-                    </button>
-                    <button class="active:scale-90 transition-transform">
-                      <span class="material-symbols-outlined text-slate-500">
-                        share
-                      </span>
-                    </button>
+                    </a>
                   </div>
                   <p class="text-lg font-bold font-['Manrope'] text-[#005d90]">
                     {`$${product.Precio}`}
@@ -260,83 +268,76 @@ const sizes = [
                   </p>
                 </div>
               </div>
-
-              <div class="px-6 py-4">
-                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">
-                  Tallas disponibles
-                </p>
-
-                <div class="flex gap-2 overflow-x-auto no-scrollbar py-1">
-                  {sizes.map((size) => (
-                    <button
-                      disabled={size.disabled}
-                      class={`flex-shrink-0 px-3 py-2 rounded-lg border flex flex-col items-center min-w-[64px] transition-all
-            ${
-              size.disabled
-                ? "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
-                : size.selected
-                  ? "border-2 border-[#005d90] bg-[#005d90]/5 text-[#005d90]"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-[#005d90] active:scale-95"
-            }
-          `}
-                    >
-                      <span class="text-xs font-bold font-['Manrope']">
-                        {size.label}
-                      </span>
-                      <span
-                        class={`text-[9px] font-medium italic ${size.selected ? "opacity-80" : "text-slate-400"}`}
-                      >
-                        {size.status}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <SizeStock tallaStock={product.Talla} class="px-6" />
             </article>
           );
         })
       }
     </div>
+    <div id="no-results" class="hidden py-20 px-6 text-center">
+      <span class="material-symbols-outlined text-6xl text-slate-200 mb-4">
+        inventory_2
+      </span>
+      <h3 class="text-lg font-bold text-slate-800 font-['Manrope']">
+        No encontramos lo que buscas
+      </h3>
+      <p class="text-slate-500 text-sm mt-2">
+        Intenta cambiando los filtros de categoría o género.
+      </p>
+      <button
+        id="reset-filters"
+        class="mt-6 px-6 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-colors"
+      >
+        Limpiar Filtros
+      </button>
+    </div>
   </main>
 
   <nav
-    class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pt-2 bg-white z-50 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border-t border-slate-100"
+    id="gender-filter-nav"
+    class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pt-2 pb-2 bg-white z-50 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border-t border-slate-100"
   >
-    <a
-      class="flex flex-col items-center justify-center bg-sky-50 text-pink-700 rounded-2xl px-5 py-2"
-      href="#"
+    <button
+      class="filter-btn flex flex-col items-center justify-center text-slate-400 px-5 py-2 transition-all"
+      data-filter="Dama"
     >
-      <span
-        class="material-symbols-outlined"
-        style="font-variation-settings: 'FILL' 1;">female</span
-      >
+      <span class="material-symbols-outlined">female</span>
       <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
         >Dama</span
       >
-    </a>
-    <a
-      class="flex flex-col items-center justify-center text-slate-400 px-5 py-2"
-      href="#"
+    </button>
+    <button
+      class="filter-btn flex flex-col items-center justify-center text-slate-400 px-5 py-2 transition-all"
+      data-filter="Caballero"
     >
       <span class="material-symbols-outlined">male</span>
       <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
         >Caballero</span
       >
-    </a>
-    <a
-      class="flex flex-col items-center justify-center text-slate-400 px-5 py-2"
-      href="#"
+    </button>
+    <button
+      class="filter-btn flex flex-col items-center justify-center text-slate-400 px-5 py-2 transition-all"
+      data-filter="Unisex"
     >
       <span class="material-symbols-outlined">group</span>
       <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
         >Unisex</span
       >
-    </a>
+    </button>
+    <button
+      class="filter-btn flex flex-col items-center justify-center text-[#0077B6] px-5 py-2 transition-all"
+      data-filter="all"
+    >
+      <span class="material-symbols-outlined">grid_view</span>
+      <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
+        >Todos</span
+      >
+    </button>
   </nav>
 
   <div class="fixed right-6 bottom-28 z-40">
     <a
-      href="https://wa.me/584120000000?text=Hola!%20Me%20interesa%20uno%20de%20sus%20uniformes"
+      href="https://wa.me/584241468579?text=Hola!%20Me%20interesa%20uno%20de%20sus%20uniformes"
       target="_blank"
       rel="noopener noreferrer"
       class="w-14 h-14 rounded-full bg-gradient-to-br from-[#25D366] to-[#1DA851] text-white shadow-xl flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
@@ -353,4 +354,203 @@ const sizes = [
     -moz-appearance: none;
     appearance: none;
   }
+
+  /* Ocultar barra de scroll para Chrome, Safari y Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Ocultar barra de scroll para IE, Edge y Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .instagram-slider {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    aspect-ratio: 4 / 5;
+    width: 100%;
+  }
+
+  .slider-item {
+    flex: 0 0 100%; /* Esto obliga a cada item a medir el 100% exacto */
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: center;
+  }
+
+  /* Ocultar barra de scroll */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 </style>
+
+<script>
+  const categorySelect = document.getElementById("category-select");
+  const genderButtons = document.querySelectorAll(".filter-btn");
+  const products = document.querySelectorAll(".product-card");
+  const noResults = document.getElementById("no-results"); // Nuevo
+  const resetBtn = document.getElementById("reset-filters"); // Nuevo
+
+  let currentGender = "all";
+  let currentCategory = "";
+
+  function filterProducts() {
+    let visibleCount = 0; // Contador de resultados
+
+    products.forEach((product) => {
+      const productGender = product.getAttribute("data-gender");
+      const productCategory = product.getAttribute("data-category");
+
+      const matchesGender =
+        currentGender === "all" || productGender === currentGender;
+      const matchesCategory =
+        currentCategory === "" || productCategory === currentCategory;
+
+      const productElement = product as HTMLElement;
+
+      if (matchesGender && matchesCategory) {
+        productElement.style.display = "block";
+        visibleCount++; // Incrementamos si es visible
+      } else {
+        productElement.style.display = "none";
+      }
+    });
+
+    // Manejo del mensaje de "No hay resultados"
+    if (visibleCount === 0) {
+      noResults?.classList.remove("hidden");
+    } else {
+      noResults?.classList.add("hidden");
+    }
+  }
+
+  // Lógica para el botón de "Limpiar Filtros"
+  resetBtn?.addEventListener("click", () => {
+    // Resetear variables
+    currentGender = "all";
+    currentCategory = "";
+
+    // Resetear el Select visualmente
+    if (categorySelect) (categorySelect as HTMLSelectElement).value = "";
+
+    // Simular click en el botón "Todos" del nav para resetear estilos
+    const allBtn = document.querySelector(
+      '[data-filter="all"]',
+    ) as HTMLButtonElement;
+    allBtn?.click();
+
+    filterProducts();
+  });
+
+  categorySelect?.addEventListener("change", (e) => {
+    const target = e.target as HTMLSelectElement | null;
+    if (target) {
+      currentCategory = target.value;
+      filterProducts();
+    }
+  });
+
+  // Eventos para los Botones de Género (Inferior)
+  genderButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      currentGender = btn.getAttribute("data-filter") ?? "all";
+
+      // Actualizar visualmente los botones (Active State)
+      genderButtons.forEach((b) => {
+        b.classList.remove(
+          "bg-sky-50",
+          "text-pink-700",
+          "text-[#0077B6]",
+          "rounded-2xl",
+        );
+        b.classList.add("text-slate-400");
+        const icon = b.querySelector(".material-symbols-outlined");
+        if (icon)
+          (icon as HTMLElement).style.fontVariationSettings = "'FILL' 0";
+      });
+
+      // Estilo activo según el género
+      btn.classList.add("bg-sky-50", "rounded-2xl");
+      btn.classList.remove("text-slate-400");
+      if (currentGender === "Dama") btn.classList.add("text-pink-700");
+      else if (currentGender === "Caballero")
+        btn.classList.add("text-[#0077B6]");
+      else if (currentGender === "Unisex") btn.classList.add("text-[#9D6CB2]");
+      else btn.classList.add("text-[#747779]");
+
+      const activeIcon = btn.querySelector(".material-symbols-outlined");
+      if (activeIcon)
+        (activeIcon as HTMLElement).style.fontVariationSettings = "'FILL' 1";
+
+      filterProducts();
+    });
+  });
+
+  // Lógica de las Flechas
+  const setupArrows = () => {
+    const prevButtons = document.querySelectorAll(".prev-btn");
+    const nextButtons = document.querySelectorAll(".next-btn");
+
+    const handleScroll = (btn: Element, direction: number) => {
+      const container = btn.parentElement?.querySelector(".instagram-slider");
+      if (container) {
+        const scrollAmount = container.clientWidth; // Ancho de una imagen
+        container.scrollBy({
+          left: scrollAmount * direction,
+          behavior: "smooth",
+        });
+      }
+    };
+
+    prevButtons.forEach((btn) =>
+      btn.addEventListener("click", () => handleScroll(btn, -1)),
+    );
+    nextButtons.forEach((btn) =>
+      btn.addEventListener("click", () => handleScroll(btn, 1)),
+    );
+  };
+
+  // Lógica de los Puntos (IntersectionObserver) que ya tenías
+  const observerOptions = { threshold: 0.6 };
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const slide = entry.target as HTMLElement;
+        const productCard = slide.closest("article");
+        const index = slide.getAttribute("data-index");
+
+        if (productCard && index !== null) {
+          const dots = productCard.querySelectorAll(".dot-container div");
+          dots.forEach((dot, i) => {
+            if (i === parseInt(index)) {
+              dot.classList.add("opacity-100", "scale-110");
+              dot.classList.remove("opacity-40");
+            } else {
+              dot.classList.remove("opacity-100", "scale-110");
+              dot.classList.add("opacity-40");
+            }
+          });
+        }
+      }
+    });
+  }, observerOptions);
+
+  const initCarousel = () => {
+    document
+      .querySelectorAll(".slider-item")
+      .forEach((item) => observer.observe(item));
+    setupArrows();
+  };
+
+  // Inicializar
+  initCarousel();
+</script>

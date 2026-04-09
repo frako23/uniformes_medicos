@@ -43,7 +43,7 @@ interface Foto {
 }
 
 // Interfaz para el componente repetible de Tallas
-interface TallaStock {
+export interface TallaStock {
   id: number;
   Talla: string; // 'S' | 'M' | 'L' | 'XL' (puedes usar un union type si son fijas)
   cantidad_actual: number;

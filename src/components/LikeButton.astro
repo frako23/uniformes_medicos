@@ -1,6 +1,6 @@
 ---
 // ProductCard.astro
-const { product } = Astro.props;
+const { product, singlePage } = Astro.props;
 ---
 
 <article class="border border-slate-100 overflow-hidden">
@@ -9,7 +9,7 @@ const { product } = Astro.props;
     class="favorite-btn active:scale-90 transition-all duration-300 rounded-full hover:bg-red-50"
   >
     <span
-      class="material-symbols-outlined text-slate-500 select-none transition-colors duration-300"
+      class="material-symbols-outlined select-none transition-colors duration-300"
       style="font-variation-settings: 'FILL' 0;"
     >
       favorite
