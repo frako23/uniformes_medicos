@@ -2,7 +2,7 @@
 const { product } = Astro.props;
 // Preparamos los datos
 const shareTitle = `${product.Tipo} - ${product.Fabricantes} ${product.Marca}`;
-const shareMessage = `¡Mira este uniforme en The Clinical Editorial!`;
+const shareMessage = `¡Mira este uniforme en Uniformes Médicos 2015!`;
 ---
 
 <button
@@ -22,7 +22,7 @@ const shareMessage = `¡Mira este uniforme en The Clinical Editorial!`;
     if (!btn) return;
 
     // Extraemos los datos de los atributos 'data-' del botón
-    const title = btn.getAttribute("data-title") || "The Clinical Editorial";
+    const title = btn.getAttribute("data-title") || "Uniformes Médicos 2015";
     const text = btn.getAttribute("data-text") || "";
     const url = window.location.href;
 

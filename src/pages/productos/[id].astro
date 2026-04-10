@@ -1,5 +1,4 @@
 ---
-
 import SizeStock from "../../components/SizeStock.astro";
 import Layout from "../../layouts/Layout.astro";
 import type { Producto } from "../../utils/types";
@@ -39,7 +38,6 @@ const { producto } = Astro.props;
 
 // Verificamos la estructura de tu imagen en Strapi
 
-
 // Construimos el mensaje con saltos de línea naturales
 const message = `¡Hola! Me interesa el siguiente producto:
 
@@ -52,7 +50,11 @@ Precio: $${producto.Precio}`;
 const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(message)}`;
 ---
 
-<Layout title={`${producto.Marca} | The Clinical Editorial`}>
+<Layout
+  title={`${
+    producto.Tipo
+  } - ${producto.Fabricantes} ${producto.Marca} | Uniformes Médicos 2015`}
+>
   <main class="max-w-4xl mx-auto px-6 md:pt-24 py-8 pb-12">
     <a
       href="/"
@@ -155,7 +157,7 @@ const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(messag
     const btn = (event.target as HTMLElement).closest(".share-button");
     if (!btn) return;
 
-    const title = btn.getAttribute("data-title") || "The Clinical Editorial";
+    const title = btn.getAttribute("data-title") || "Uniformes Médicos 2015";
     const url = window.location.href;
 
     if (navigator.share) {
@@ -198,7 +200,7 @@ const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(messag
   document.addEventListener("click", async (event) => {
     const btn = (event.target as HTMLElement).closest(".share-button");
     if (!btn) return;
-    const title = btn.getAttribute("data-title") || "The Clinical Editorial";
+    const title = btn.getAttribute("data-title") || "Uniformes Médicos 2015";
     const url = window.location.href;
     if (navigator.share) {
       try {
