@@ -1,7 +1,15 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
-	content: [
-		//
-		'./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}',
-		'./node_modules/flowbite/**/*.js',
-	]}
+export default {
+  content: ["./src/**/*.{astro,html,js,jsx,md,mdx,ts,tsx}"],
+  theme: {
+    extend: {
+      fontFamily: {
+        headline: ["Tus-Fuentes-Aqui", "sans-serif"],
+      },
+      colors: {
+        // Asegúrate de que tus colores personalizados sigan aquí
+      },
+    },
+  },
+  plugins: [],
+};
