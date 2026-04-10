@@ -3,57 +3,83 @@ import SizeStock from "../../components/SizeStock.astro";
 import Layout from "../../layouts/Layout.astro";
 import type { Producto } from "../../utils/types";
 
-// 1. OBLIGATORIO: getStaticPaths le dice a Astro qué páginas existen
 export async function getStaticPaths() {
   const { STRAPI_TOKEN } = import.meta.env;
-
-  const response = await fetch(
-    "https://strapi.frakodev.com/api/productos?populate=*",
-    {
-      headers: {
-        Authorization: `Bearer ${STRAPI_TOKEN}`,
+  try {
+    const response = await fetch(
+      "https://strapi.frakodev.com/api/productos?populate=*",
+      {
+        headers: { Authorization: `Bearer ${STRAPI_TOKEN}` },
       },
-    },
-  );
+    );
+    const { data } = await response.json();
+    if (!data) return [];
 
-  const { data } = await response.json();
-
-  // Mapeamos los productos para que Astro cree una ruta por cada ID
-  return data.map((item: Producto) => ({
-    params: { id: item.id.toString() },
-    props: {
-      producto: item,
-      id: item.id,
-    },
-  }));
+    return data.map((item: any) => {
+      // Aplanamos la estructura por si acaso
+      const productoFinal = item.attributes
+        ? { id: item.id, ...item.attributes }
+        : item;
+      return {
+        params: { id: String(item.id) },
+        props: { producto: productoFinal },
+      };
+    });
+  } catch (e) {
+    return [];
+  }
 }
 
 interface Props {
   producto: Producto;
-  id: number;
 }
 
-// 2. Capturamos los datos que pasamos en getStaticPaths
-const { producto } = Astro.props;
+let { producto } = Astro.props;
+const { id } = Astro.params;
 
-// Verificamos la estructura de tu imagen en Strapi
+if (!producto && id) {
+  const { STRAPI_TOKEN } = import.meta.env;
+  const url = `https://strapi.frakodev.com/api/productos/${id}?populate=*`;
 
-// Construimos el mensaje con saltos de línea naturales
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${STRAPI_TOKEN}` },
+  });
+
+  const debugJson = await res.json();
+
+  if (debugJson.data) {
+    // Strapi suele devolver data.attributes o data directamente
+    producto = debugJson.data.attributes
+      ? { id: debugJson.data.id, ...debugJson.data.attributes }
+      : debugJson.data;
+  }
+}
+
+if (!producto) {
+  // Si sigue fallando, vamos a mostrar el error en la página en lugar de redirigir
+  // para que sepas qué pasó.
+  return new Response(
+    `Error: No se encontró el producto con ID ${id}. Revisa la terminal.`,
+    { status: 404 },
+  );
+}
+
+// 3. Si después de todo sigue sin existir, ahora sí nos rendimos
+if (!producto) {
+  return Astro.redirect("/404");
+}
+
 const message = `¡Hola! Me interesa el siguiente producto:
-
 *${producto.Tipo}*
 Marca: ${producto.Marca}
 Color: ${producto.Color}
 Precio: $${producto.Precio}`;
 
-// Codificamos para que los espacios y saltos de línea funcionen en la URL
 const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(message)}`;
 ---
 
 <Layout
-  title={`${
-    producto.Tipo
-  } - ${producto.Fabricantes} ${producto.Marca} | Uniformes Médicos 2015`}
+  title={`${producto.Tipo} - ${producto.Fabricantes || ""} ${producto.Marca || ""} | Uniformes Médicos 2015`}
 >
   <main class="max-w-4xl mx-auto px-6 md:pt-24 py-8 pb-12">
     <a

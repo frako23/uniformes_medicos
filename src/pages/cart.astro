@@ -99,7 +99,6 @@ import Layout from "../layouts/Layout.astro";
 
   async function loadCartProducts() {
     const ids = favoritesStore.get();
-    console.log("IDs en el carrito:", ids);
     if (!ids.length) return;
 
     // LLAMADA A TU PROPIO SERVIDOR (Astro Endpoint)
@@ -110,7 +109,6 @@ import Layout from "../layouts/Layout.astro";
     });
 
     const { data } = await response.json();
-    console.log("Datos recibidos para el carrito:", data);
     const container = document.getElementById("cart-container");
 
     const subtotalEl = document.getElementById("subtotal");
@@ -128,12 +126,14 @@ import Layout from "../layouts/Layout.astro";
         // Generamos el HTML del producto
         const productHtml = `
           <div class="flex gap-4 p-4 bg-white rounded-xl border border-slate-100 cart-item-data animate-fade-in">
-            <div class="w-20 h-20 bg-slate-50 rounded-lg overflow-hidden flex-shrink-0">
-               <img src="${URL_BASE}${product.Foto[0].url}" 
-                     alt="${product.Tipo}" 
-                     class="w-full h-full object-cover" />
-               
-            </div>
+      <div class="group w-20 h-20 bg-white rounded-xl overflow-hidden flex-shrink-0 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] border border-slate-200/50 ring-4 ring-slate-50 p-1 transition-all duration-300 hover:ring-sky-50 hover:shadow-md">
+  <img 
+    src="${URL_BASE}${product.Foto[0].url}" 
+    alt="${product.Tipo}" 
+    class="w-full h-full object-cover rounded-lg transition-transform duration-500 group-hover:scale-110" 
+  />
+</div>
+
             <div class="flex-1">
               <div class="flex justify-between items-start">
                 <div>
