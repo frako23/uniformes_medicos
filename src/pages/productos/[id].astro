@@ -1,6 +1,5 @@
 ---
-import LikeButton from "../../components/LikeButton.astro";
-import ShareButton from "../../components/ShareButton.astro";
+
 import SizeStock from "../../components/SizeStock.astro";
 import Layout from "../../layouts/Layout.astro";
 import type { Producto } from "../../utils/types";
@@ -37,12 +36,9 @@ interface Props {
 
 // 2. Capturamos los datos que pasamos en getStaticPaths
 const { producto } = Astro.props;
-const URL_BASE = "https://strapi.frakodev.com";
 
 // Verificamos la estructura de tu imagen en Strapi
-const imagenUrl = producto.Foto?.[0]?.url
-  ? `${URL_BASE}${producto.Foto[0].url}`
-  : "/placeholder.jpg";
+
 
 // Construimos el mensaje con saltos de línea naturales
 const message = `¡Hola! Me interesa el siguiente producto:
