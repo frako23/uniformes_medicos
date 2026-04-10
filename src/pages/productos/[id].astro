@@ -57,7 +57,7 @@ const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(messag
 ---
 
 <Layout title={`${producto.Marca} | The Clinical Editorial`}>
-  <main class="max-w-4xl mx-auto px-6 pt-24 pb-12">
+  <main class="max-w-4xl mx-auto px-6 md:pt-24 py-8 pb-12">
     <a
       href="/"
       class="inline-flex items-center text-slate-500 hover:text-[#005d90] mb-8 transition-colors"
@@ -67,14 +67,53 @@ const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(messag
     </a>
 
     <div class="grid md:grid-cols-2 gap-12">
-      <div
-        class="rounded-3xl overflow-hidden bg-slate-100 aspect-[3/4] shadow-sm"
-      >
-        <img
-          src={imagenUrl}
-          alt={producto.Tipo || "Producto"}
-          class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-        />
+      <div class="relative group overflow-hidden">
+        <button
+          class="prev-btn absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm text-slate-800 hidden md:group-hover:flex items-center justify-center shadow-md hover:bg-white transition-all active:scale-90"
+          data-direction="-1"
+        >
+          <span class="material-symbols-outlined !text-xl"> chevron_left </span>
+        </button>
+
+        <div class="instagram-slider no-scrollbar">
+          {
+            producto.Foto &&
+              producto.Foto.map((foto, index) => (
+                <div class="slider-item" data-index={index}>
+                  <img
+                    src={`https://strapi.frakodev.com${foto.url}`}
+                    alt={`${producto.Tipo} - ${index + 1}`}
+                    class="w-full h-full object-cover pointer-events-none"
+                    loading="lazy"
+                  />
+                </div>
+              ))
+          }
+        </div>
+
+        <button
+          class="next-btn absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm text-slate-800 hidden md:group-hover:flex items-center justify-center shadow-md hover:bg-white transition-all active:scale-90"
+          data-direction="1"
+        >
+          <span class="material-symbols-outlined !text-xl">
+            chevron_right
+          </span>
+        </button>
+
+        {
+          producto.Foto && producto.Foto.length > 1 && (
+            <div class="absolute bottom-0 left-0 w-full h-12 pointer-events-none flex items-end justify-center pb-3 bg-gradient-to-t from-black/40 to-transparent">
+              <div class="flex gap-1.5 dot-container">
+                {producto.Foto.map((_, i) => (
+                  <div
+                    data-index={i}
+                    class={`w-1.5 h-1.5 rounded-full bg-white shadow-sm transition-all duration-300 ${i === 0 ? "opacity-100 scale-110" : "opacity-40"}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )
+        }
       </div>
 
       <div class="flex flex-col">
@@ -134,4 +173,131 @@ const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(messag
       alert("Enlace del producto copiado");
     }
   });
+
+  // Lógica de las Flechas
+  const setupArrows = () => {
+    const prevButtons = document.querySelectorAll(".prev-btn");
+    const nextButtons = document.querySelectorAll(".next-btn");
+
+    const handleScroll = (btn: Element, direction: number) => {
+      const container = btn.parentElement?.querySelector(".instagram-slider");
+      if (container) {
+        const scrollAmount = container.clientWidth; // Ancho de una imagen
+        container.scrollBy({
+          left: scrollAmount * direction,
+          behavior: "smooth",
+        });
+      }
+    };
+
+    prevButtons.forEach((btn) =>
+      btn.addEventListener("click", () => handleScroll(btn, -1)),
+    );
+    nextButtons.forEach((btn) =>
+      btn.addEventListener("click", () => handleScroll(btn, 1)),
+    );
+  };
+
+  // Lógica de Compartir
+  document.addEventListener("click", async (event) => {
+    const btn = (event.target as HTMLElement).closest(".share-button");
+    if (!btn) return;
+    const title = btn.getAttribute("data-title") || "The Clinical Editorial";
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") console.error(err);
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      alert("Enlace del producto copiado");
+    }
+  });
+
+  // Lógica del Slider
+  const initSlider = () => {
+    const slider = document.querySelector(".instagram-slider");
+    const dots = document.querySelectorAll(".dot-container div");
+    const prevBtn = document.querySelector(".prev-btn");
+    const nextBtn = document.querySelector(".next-btn");
+
+    if (!slider) return;
+
+    // 1. Flechas
+    const scroll = (direction: number) => {
+      slider.scrollBy({
+        left: slider.clientWidth * direction,
+        behavior: "smooth",
+      });
+    };
+
+    prevBtn?.addEventListener("click", () => scroll(-1));
+    nextBtn?.addEventListener("click", () => scroll(1));
+
+    // 2. Puntos (Dots) - Usando scroll directo en lugar de Observer para mayor precisión en sliders simples
+    slider.addEventListener("scroll", () => {
+      const index = Math.round(slider.scrollLeft / slider.clientWidth);
+      dots.forEach((dot, i) => {
+        if (i === index) {
+          dot.classList.add("opacity-100", "scale-110");
+          dot.classList.remove("opacity-40");
+        } else {
+          dot.classList.remove("opacity-100", "scale-110");
+          dot.classList.add("opacity-40");
+        }
+      });
+    });
+  };
+
+  // Inicializar
+  initSlider();
+  // Importante si usas ViewTransitions:
+  document.addEventListener("astro:page-load", initSlider);
 </script>
+
+<style>
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+
+  /* Ocultar barra de scroll para Chrome, Safari y Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Ocultar barra de scroll para IE, Edge y Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .instagram-slider {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    aspect-ratio: 4 / 5;
+    width: 100%;
+  }
+
+  .slider-item {
+    flex: 0 0 100%; /* Esto obliga a cada item a medir el 100% exacto */
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: center;
+  }
+
+  /* Ocultar barra de scroll */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+</style>

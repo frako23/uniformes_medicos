@@ -22,9 +22,11 @@ import Layout from "../layouts/Layout.astro";
   <main class="pt-20 pb-40 px-6 max-w-2xl mx-auto">
     <section class="mb-8">
       <h2 class="font-headline text-2xl font-bold tracking-tight mb-2">
-        Review your picks
+        Revisa tu selección
       </h2>
-      <p class="text-slate-500 text-sm">Curated items from your selection.</p>
+      <p class="text-slate-500 text-sm">
+        Revisa los productos que has seleccionado para comprar.
+      </p>
     </section>
 
     <div class="space-y-6" id="cart-container">
@@ -73,8 +75,8 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   import { favoritesStore } from "../stores/favoritesStore";
-import { renderEmptyCart } from "../utils/fucntions"; // Asegúrate de que el path y nombre sean correctos
-import type { Producto } from "../utils/types";
+  import { renderEmptyCart } from "../utils/fucntions"; // Asegúrate de que el path y nombre sean correctos
+  import type { Producto } from "../utils/types";
 
   // Extiende la interfaz Window para incluir removeItem
   declare global {
@@ -83,8 +85,6 @@ import type { Producto } from "../utils/types";
     }
   }
 
-  const { STRAPI_TOKEN } = import.meta.env;
-  const URL = "https://strapi.frakodev.com";
   // 1. Definimos removeItem de forma GLOBAL para que el onclick lo encuentre
   window.removeItem = (id: number) => {
     const currentIds = favoritesStore.get();
@@ -99,93 +99,69 @@ import type { Producto } from "../utils/types";
 
   async function loadCartProducts() {
     const ids = favoritesStore.get();
+    console.log("IDs en el carrito:", ids);
+    if (!ids.length) return;
 
-    if (!ids || ids.length === 0) {
-      document.getElementById("checkout-container")?.classList.add("hidden");
-      document.getElementById("order-summary-section")?.classList.add("hidden");
-      return renderEmptyCart();
-    }
-
-    // Limpieza de IDs
-    const cleanIds = ids
-      .map((id) => (typeof id === "object" ? (id as any).id : id))
-      .filter((id) => id && id !== "[object Object]");
-
-    const params = new URLSearchParams();
-    cleanIds.forEach((id, index) => {
-      params.append(`filters[id][$in][${index}]`, id);
+    // LLAMADA A TU PROPIO SERVIDOR (Astro Endpoint)
+    const response = await fetch("/api/cart-details", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+      headers: { "Content-Type": "application/json" },
     });
-    params.append("populate", "*");
 
-    const finalUrl = `${URL}/api/productos?${params.toString()}`;
+    const { data } = await response.json();
+    console.log("Datos recibidos para el carrito:", data);
+    const container = document.getElementById("cart-container");
 
-    try {
-      const response = await fetch(finalUrl, {
-        headers: {
-          Authorization: `Bearer ${STRAPI_TOKEN}`,
-        },
+    const subtotalEl = document.getElementById("subtotal");
+    const totalEl = document.getElementById("total");
+
+    if (container && data && data.length > 0) {
+      container.innerHTML = ""; // Limpiamos el cargando...
+      let totalAccumulated = 0;
+      const URL_BASE = "https://strapi.frakodev.com";
+      data.forEach((product: Producto) => {
+        // Asumiendo que el precio está en item.price. Si no existe, cámbialo por el campo real
+        const price = product.Precio || 0;
+        totalAccumulated += price;
+
+        // Generamos el HTML del producto
+        const productHtml = `
+          <div class="flex gap-4 p-4 bg-white rounded-xl border border-slate-100 cart-item-data animate-fade-in">
+            <div class="w-20 h-20 bg-slate-50 rounded-lg overflow-hidden flex-shrink-0">
+               <img src="${URL_BASE}${product.Foto[0].url}" 
+                     alt="${product.Tipo}" 
+                     class="w-full h-full object-cover" />
+               
+            </div>
+            <div class="flex-1">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="text-xs font-bold text-[#005d90] uppercase tracking-wider product-type">
+                    ${product.Tipo || "Producto"}
+                  </p>
+                  <h3 class="font-bold text-slate-800 product-title">${product.Fabricantes} ${product.Marca}</h3>
+                </div>
+                <button onclick="removeItem(${product.id})" class="text-slate-300 hover:text-red-500 transition-colors">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              </div>
+              <div class="mt-2 flex justify-between items-center">
+                <span class="font-extrabold text-[#005d90]">$${price.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+        container.innerHTML += productHtml;
       });
 
-      const { data } = await response.json();
-
-      const container = document.getElementById("cart-container");
-      const subtotalEl = document.getElementById("subtotal");
-      const totalEl = document.getElementById("total");
-
-      if (container && data && data.length > 0) {
-        let totalAccumulated = 0;
-        container.innerHTML = "";
-
-        data.forEach((item: Producto) => {
-          const price = item.Precio || 0;
-          totalAccumulated += price;
-
-          // ... dentro del data.forEach ...
-          container.innerHTML += `
-           <div class="flex gap-4 group animate-in fade-in duration-500" data-id="${item.id}">
-
-              <div class="w-24 h-32 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
-
-                <img class="w-full h-full object-cover" src="${URL}${item.Foto[0].url}" alt="${item.Tipo} ${item.Fabricantes} ${item.Marca}" />
-
-              </div>
-  <div class="cart-item-data flex gap-4 group animate-in fade-in duration-500" data-id="${item.id}">
-    <div class="flex flex-col justify-between py-1 flex-grow">
-      <div>
-        <div class="flex justify-between items-start">
-          <h3 class="product-title font-headline font-bold text-slate-800 leading-tight">
-            ${item.Fabricantes} ${item.Marca}
-          </h3>
-          </div>
-        <p class="product-type text-xs font-semibold text-sky-700 uppercase tracking-widest mt-1">
-          ${item.Tipo}
-        </p>
-      </div>
-      </div>
-  </div>
-  </div>
-`;
-        });
-
-        if (subtotalEl)
-          subtotalEl.textContent = `$${totalAccumulated.toFixed(2)}`;
-        if (totalEl) totalEl.textContent = `$${totalAccumulated.toFixed(2)}`;
-
-        // Aseguramos que se vean las secciones de totales
-        document
-          .getElementById("checkout-container")
-          ?.classList.remove("hidden");
-        document
-          .getElementById("order-summary-section")
-          ?.classList.remove("hidden");
-      } else {
-        renderEmptyCart();
-      }
-    } catch (error) {
-      console.error("Error cargando el carrito:", error);
-      const container = document.getElementById("cart-container");
-      if (container)
-        container.innerHTML = "<p>Error al conectar con el servidor.</p>";
+      // Actualizar totales
+      if (subtotalEl) subtotalEl.innerText = `$${totalAccumulated.toFixed(2)}`;
+      if (totalEl) totalEl.innerText = `$${totalAccumulated.toFixed(2)}`;
+    } else {
+      renderEmptyCart();
+      if (subtotalEl) subtotalEl.innerText = `$0.00`;
+      if (totalEl) totalEl.innerText = `$0.00`;
     }
   }
 
