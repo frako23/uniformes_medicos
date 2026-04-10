@@ -6,6 +6,7 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
   integrations: [tailwind(), react()],
   output: "server",
+  site: "https://uniformes-medicos.vercel.app",
   adapter: vercel({
     webAnalytics: { enabled: true },
     // ESTO ES LO QUE SOLUCIONA TU ERROR:
