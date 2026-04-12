@@ -11,13 +11,22 @@ const STRAPI_URL = import.meta.env.STRAPI_URL || "https://strapi.frakodev.com";
 const STRAPI_TOKEN = import.meta.env.STRAPI_TOKEN;
 
 // El parámetro pagination[limit]=-1 desactiva el límite de 25
-const url = `${STRAPI_URL}/api/productos?populate=*&pagination[pageSize]=200`;
-const response = await fetch(url, {
-  headers: {
-    Authorization: `Bearer ${STRAPI_TOKEN}`,
-  },
-});
-const { data: uniformes } = await response.json();
+// Usamos un pageSize de 1000 para asegurar que entren todos tus productos actuales y futuros
+// 1. Pedimos los primeros 100
+const urlPage1 = `${STRAPI_URL}/api/productos?populate=*&pagination[page]=1&pagination[pageSize]=100`;
+// 2. Pedimos los siguientes 100 (del 101 al 200)
+const urlPage2 = `${STRAPI_URL}/api/productos?populate=*&pagination[page]=2&pagination[pageSize]=100`;
+
+const [res1, res2] = await Promise.all([
+  fetch(urlPage1, { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }),
+  fetch(urlPage2, { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }),
+]);
+
+const json1 = await res1.json();
+const json2 = await res2.json();
+
+// 3. Unimos ambos arrays en uno solo
+const uniformes = [...(json1.data || []), ...(json2.data || [])];
 
 const categories = [
   "Todo",
@@ -80,44 +89,53 @@ const genderStyles = {
       </h1>
       <FavBag />
     </div>
-
-    <section class="px-6 py-4 max-w-6xl mx-auto">
-      <div class="relative group">
-        <!-- <div
-          class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+    <div class="flex">
+      <section class="px-6 py-4 max-w-6xl mx-auto">
+        <div class="relative group">
+          <!-- <div
+        class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+      >
+        <span
+          class="material-symbols-outlined text-[#005d90] text-sm opacity-70"
         >
-          <span
-            class="material-symbols-outlined text-[#005d90] text-sm opacity-70"
+          filter_list
+        </span>
+      </div> -->
+
+          <select
+            id="category-select"
+            class="block w-full pl-10 pr-10 py-3 text-[11px] font-bold font-['Manrope'] uppercase tracking-widest bg-white border border-slate-200 text-slate-700 rounded-xl shadow-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#005d90]/20 focus:border-[#005d90] transition-all cursor-pointer"
           >
-            filter_list
-          </span>
-        </div> -->
+            {
+              categories.map((cat) => (
+                <option
+                  value={cat === "Todo" ? "" : cat}
+                  class="font-sans normal-case"
+                >
+                  {cat}
+                </option>
+              ))
+            }
+          </select>
 
-        <select
-          id="category-select"
-          class="block w-full pl-10 pr-10 py-3 text-[11px] font-bold font-['Manrope'] uppercase tracking-widest bg-white border border-slate-200 text-slate-700 rounded-xl shadow-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#005d90]/20 focus:border-[#005d90] transition-all cursor-pointer"
-        >
-          {
-            categories.map((cat) => (
-              <option
-                value={cat === "Todo" ? "" : cat}
-                class="font-sans normal-case"
-              >
-                {cat}
-              </option>
-            ))
-          }
-        </select>
-
-        <div
-          class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
-        >
-          <span class="material-symbols-outlined text-slate-400 text-sm">
-            unfold_more
-          </span>
+          <div
+            class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
+          >
+            <span class="material-symbols-outlined text-slate-400 text-sm">
+              unfold_more
+            </span>
+          </div>
         </div>
+      </section>
+      <div class="pr-6 pb-2 max-w-6xl mx-auto flex items-center gap-2">
+        <span
+          id="sku-count"
+          class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full font-['Manrope']"
+        >
+          {uniformes.length} Productos
+        </span>
       </div>
-    </section>
+    </div>
   </header>
 
   <main class="pt-16 pb-24 max-w-8xl mx-auto">
@@ -403,7 +421,8 @@ const genderStyles = {
   let currentCategory = "";
 
   function filterProducts() {
-    let visibleCount = 0; // Contador de resultados
+    let visibleCount = 0;
+    const skuCounter = document.getElementById("sku-count"); // Referencia al contador
 
     products.forEach((product) => {
       const productGender = product.getAttribute("data-gender");
@@ -418,11 +437,25 @@ const genderStyles = {
 
       if (matchesGender && matchesCategory) {
         productElement.style.display = "block";
-        visibleCount++; // Incrementamos si es visible
+        visibleCount++;
       } else {
         productElement.style.display = "none";
       }
     });
+
+    // ACTUALIZAR EL TOTALIZADOR
+    if (skuCounter) {
+      skuCounter.textContent = `${visibleCount} ${visibleCount === 1 ? "Producto" : "Productos"}`;
+
+      // Opcional: Cambiar color si no hay resultados
+      if (visibleCount === 0) {
+        skuCounter.classList.replace("bg-slate-100", "bg-red-50");
+        skuCounter.classList.replace("text-slate-500", "text-red-600");
+      } else {
+        skuCounter.classList.replace("bg-red-50", "bg-slate-100");
+        skuCounter.classList.replace("text-red-600", "text-slate-500");
+      }
+    }
 
     // Manejo del mensaje de "No hay resultados"
     if (visibleCount === 0) {
