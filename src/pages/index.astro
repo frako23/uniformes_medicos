@@ -16,17 +16,25 @@ const STRAPI_TOKEN = import.meta.env.STRAPI_TOKEN;
 const urlPage1 = `${STRAPI_URL}/api/productos?populate=*&pagination[page]=1&pagination[pageSize]=100`;
 // 2. Pedimos los siguientes 100 (del 101 al 200)
 const urlPage2 = `${STRAPI_URL}/api/productos?populate=*&pagination[page]=2&pagination[pageSize]=100`;
+// 3. Pedimos los siguientes 100 (del 201 al 300)
+const urlPage3 = `${STRAPI_URL}/api/productos?populate=*&pagination[page]=3&pagination[pageSize]=100`;
 
-const [res1, res2] = await Promise.all([
+const [res1, res2, res3] = await Promise.all([
   fetch(urlPage1, { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }),
   fetch(urlPage2, { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }),
+  fetch(urlPage3, { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }),
 ]);
 
 const json1 = await res1.json();
 const json2 = await res2.json();
+const json3 = await res3.json();
 
 // 3. Unimos ambos arrays en uno solo
-const uniformes = [...(json1.data || []), ...(json2.data || [])];
+const uniformes = [
+  ...(json1.data || []),
+  ...(json2.data || []),
+  ...(json3.data || []),
+];
 
 const categories = [
   "Todo",
