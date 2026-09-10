@@ -1,54 +1,92 @@
-# Astro Starter Kit: Basics
+# Uniformes Médicos 2015
 
-```sh
-npm create astro@latest -- --template basics
+Catálogo web de uniformes médicos construido con Astro. La aplicación consulta los productos desde una API de Strapi, permite filtrarlos por categoría y género, guardar favoritos y preparar un pedido para enviarlo por WhatsApp.
+
+## Tecnologías
+
+- Astro 4 con TypeScript.
+- Tailwind CSS para estilos.
+- React y Nanostores para componentes e interacción en el cliente.
+- Strapi como fuente de productos e imágenes.
+- Adaptador serverless de Vercel con Node.js 20.
+
+## Requisitos
+
+- Node.js 20.x.
+- npm.
+- Una instancia de Strapi con el recurso `productos` y sus relaciones multimedia.
+
+## Instalación y desarrollo
+
+```bash
+npm install
+npm run dev
 ```
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/astro/tree/latest/examples/basics)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/astro/tree/latest/examples/basics)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/withastro/astro?devcontainer_path=.devcontainer/basics/devcontainer.json)
+El sitio estará disponible normalmente en `http://localhost:4321`.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Para validar y generar la compilación de producción:
 
-![just-the-basics](https://github.com/withastro/astro/assets/2244813/a0a5533c-a856-4198-8470-2d67b1d7c554)
+```bash
+npm run build
+npm run preview
+```
 
-## 🚀 Project Structure
+## Variables de entorno
 
-Inside of your Astro project, you'll see the following folders and files:
+Crea un archivo `.env` en la raíz:
+
+```env
+STRAPI_URL=https://tu-instancia-de-strapi.com
+STRAPI_TOKEN=tu-token-de-strapi
+```
+
+`STRAPI_URL` se usa para consultar productos y construir las URLs de las imágenes. `STRAPI_TOKEN` autoriza las consultas en el servidor. No publiques este archivo ni expongas el token en el navegador.
+
+## Rutas principales
+
+| Ruta | Descripción |
+| --- | --- |
+| `/` | Catálogo, filtros por categoría y género, favoritos y acceso al detalle. |
+| `/productos/[id]` | Detalle de un producto. |
+| `/cart` | Bolsa de productos favoritos y resumen del pedido. |
+| `POST /api/cart-details` | Consulta en Strapi los productos incluidos en la bolsa. |
+
+## Estructura
 
 ```text
-/
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── components/
-│   │   └── Card.astro
-│   ├── layouts/
-│   │   └── Layout.astro
-│   └── pages/
-│       └── index.astro
-└── package.json
+public/                  Recursos estáticos y datos de referencia
+src/components/          Botones y componentes reutilizables
+src/layouts/             Layout global y metadatos
+src/pages/               Rutas Astro y endpoint de la bolsa
+src/stores/              Estado persistente de favoritos
+src/utils/               Tipos y funciones de interfaz
+docs/                    Documentación técnica
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+La documentación técnica completa está en [`docs/documentacion.md`](docs/documentacion.md).
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+## Scripts
 
-Any static assets, like images, can be placed in the `public/` directory.
+| Comando | Uso |
+| --- | --- |
+| `npm run dev` | Inicia el servidor de desarrollo. |
+| `npm run build` | Ejecuta `astro check` y genera producción. |
+| `npm run preview` | Sirve localmente la compilación. |
+| `npm run astro` | Ejecuta comandos de la CLI de Astro. |
 
-## 🧞 Commands
+## Flujo de compra
 
-All commands are run from the root of the project, from a terminal:
+1. El usuario selecciona productos desde el catálogo.
+2. Los IDs se guardan en el store persistente `favorites` del navegador.
+3. `/cart` envía esos IDs a `/api/cart-details`.
+4. El endpoint consulta los productos en Strapi sin exponer el token.
+5. Se genera un mensaje de pedido para WhatsApp.
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+## Despliegue
 
-## 👀 Want to learn more?
+El proyecto está configurado para Vercel mediante `@astrojs/vercel` en modo serverless. Configura `STRAPI_URL` y `STRAPI_TOKEN` como variables de entorno en Vercel y usa Node.js 20.x.
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+## Nota sobre `public/data.json`
+
+Es un archivo estático de referencia. El catálogo actual se obtiene desde Strapi; modificarlo no cambia los productos mostrados mientras no se conecte explícitamente a la interfaz.
