@@ -8,11 +8,11 @@
 
 Se reemplazará la dependencia de Strapi por un backend integrado en la aplicación Astro existente. La aplicación mantendrá sus rutas públicas y su flujo de WhatsApp, pero consultará PostgreSQL para el catálogo y las existencias, y un almacenamiento de objetos público para las imágenes. Se añadirá un panel privado para una única propietaria, con autenticación server-side, gestión completa de productos/variantes/imágenes y validaciones de inventario.
 
-La migración se ejecutará con scripts reanudables e idempotentes: leerá todas las páginas disponibles de Strapi, conservará los identificadores de origen, copiará las imágenes, generará un informe de comparación y bloqueará el retiro de Strapi hasta validar los datos. El plan conserva Astro con Node.js 20 y Vercel; no crea un frontend ni un backend separado.
+La migración se ejecutará con scripts reanudables e idempotentes: leerá todas las páginas disponibles de Strapi, conservará los identificadores de origen, copiará las imágenes, generará un informe de comparación y bloqueará el retiro de Strapi hasta validar los datos. El plan conserva Astro con Node.js 24 y Vercel; no crea un frontend ni un backend separado.
 
 ## Technical Context
 
-**Language/Version**: TypeScript sobre Node.js 20.x; Astro 4 existente con salida `server`.
+**Language/Version**: TypeScript sobre Node.js 24.x; Astro 4 existente con salida `server`.
 
 **Primary Dependencies**: Astro/Vercel/Tailwind/React existentes; Drizzle ORM y Drizzle Kit para PostgreSQL y migraciones; Postgres.js para conexiones server-side; Zod para validar entradas; `@vercel/blob` para imágenes; Vitest y Playwright para pruebas.
 
@@ -20,7 +20,7 @@ La migración se ejecutará con scripts reanudables e idempotentes: leerá todas
 
 **Testing**: `astro check` y `npm run build`; pruebas unitarias e integrales con Vitest; pruebas de navegador con Playwright; scripts de migración en modo simulación, comparación e idempotencia.
 
-**Target Platform**: Desarrollo local con Node.js 20 y PostgreSQL local o rama de desarrollo; producción en Vercel con funciones Node.js 20, PostgreSQL y Vercel Blob configurados por entorno.
+**Target Platform**: Desarrollo local con Node.js 24 y PostgreSQL local o rama de desarrollo; producción en Vercel con funciones Node.js 24, PostgreSQL y Vercel Blob configurados por entorno.
 
 **Project Type**: Aplicación web Astro server-rendered con vitrina pública, panel administrativo privado, endpoints HTTP y scripts de migración operativa.
 

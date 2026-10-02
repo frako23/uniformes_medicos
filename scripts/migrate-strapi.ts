@@ -22,10 +22,16 @@ function safeSourceUrl(value: string) {
 }
 
 const { url, token } = sourceConfig();
-const client = createStrapiClient({ baseUrl: url, token });
+console.log(`Conectando con Strapi: ${safeSourceUrl(url)}`);
+const client = createStrapiClient({
+  baseUrl: url,
+  token,
+  onPage: (page, count) => console.log(`Página de Strapi ${page}: ${count} producto(s)`),
+});
 const sourceProducts = await client.products();
 const sourceImages = sourceProducts.reduce((total, product) => total + product.images.length, 0);
 const sourceVariants = sourceProducts.reduce((total, product) => total + product.variants.length, 0);
+console.log(`Fuente cargada: ${sourceProducts.length} producto(s), ${sourceVariants} variante(s), ${sourceImages} imagen(es).`);
 
 if (process.argv.includes("--dry-run")) {
   const runId = randomUUID();
@@ -47,6 +53,7 @@ if (process.argv.includes("--dry-run")) {
     sourceProducts,
     sourceUrl: safeSourceUrl(url),
     runId: argument("--run-id"),
+    onProgress: (current, total, source) => console.log(`Importando ${current}/${total}: ${source.legacyDocumentId}`),
   });
   console.log(`Importación ${result.runId} finalizada con ${result.errors.length} error(es).`);
   if (result.errors.length) process.exitCode = 1;

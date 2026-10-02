@@ -1,7 +1,7 @@
 {
   "name": "uniformes-medicos-catalogo",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "type": "module",
   "version": "0.0.1",
@@ -13,12 +13,17 @@
     "astro": "astro",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "docker:up": "docker compose up -d postgres",
+    "docker:down": "docker compose down",
+    "docker:ps": "docker compose ps",
+    "docker:logs": "docker compose logs -f postgres",
     "owner:seed": "tsx scripts/seed-owner.ts",
     "migrate:strapi": "tsx scripts/migrate-strapi.ts",
     "migrate:verify": "tsx scripts/verify-migration.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "postbuild": "node scripts/set-vercel-node-runtime.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.5.5",

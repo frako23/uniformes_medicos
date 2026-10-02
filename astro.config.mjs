@@ -9,7 +9,5 @@ export default defineConfig({
   site: "https://uniformes-medicos.vercel.app",
   adapter: vercel({
     webAnalytics: { enabled: true },
-    // ESTO ES LO QUE SOLUCIONA TU ERROR:
-    runtime: "nodejs20.x",
   }),
 });

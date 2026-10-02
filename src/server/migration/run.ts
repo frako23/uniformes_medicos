@@ -8,6 +8,7 @@ export async function executeImport(input: {
   sourceProducts: SourceProduct[];
   sourceUrl: string;
   runId?: string;
+  onProgress?: (current: number, total: number, source: SourceProduct) => void;
 }) {
   const expectedImages = input.sourceProducts.reduce((count, product) => count + product.images.length, 0);
   const run = input.runId
@@ -33,7 +34,8 @@ export async function executeImport(input: {
   const errors: string[] = [];
   const seenLegacyIds = new Set<number>();
   const seenDocumentIds = new Set<string>();
-  for (const source of input.sourceProducts) {
+  for (const [index, source] of input.sourceProducts.entries()) {
+    input.onProgress?.(index + 1, input.sourceProducts.length, source);
     if (seenLegacyIds.has(source.legacyId) || seenDocumentIds.has(source.legacyDocumentId)) {
       const message = `Identificador de producto duplicado en la fuente: ${source.legacyDocumentId}.`;
       errors.push(`${source.legacyDocumentId}: ${message}`);

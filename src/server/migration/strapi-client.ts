@@ -4,6 +4,7 @@ export interface StrapiClientOptions {
   baseUrl: string;
   token: string;
   pageSize?: number;
+  onPage?: (page: number, count: number) => void;
 }
 
 export function createStrapiClient(options: StrapiClientOptions) {
@@ -13,6 +14,7 @@ export function createStrapiClient(options: StrapiClientOptions) {
   async function request(path: string) {
     const response = await fetch(`${baseUrl}${path}`, {
       headers: { Authorization: `Bearer ${options.token}`, Accept: "application/json" },
+      signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) throw new Error(`Strapi respondió ${response.status} para ${path}`);
     return response.json();
@@ -31,6 +33,7 @@ export function createStrapiClient(options: StrapiClientOptions) {
       const payload = await request(`/api/productos?${query.toString()}`);
       const rows = Array.isArray(payload.data) ? payload.data : [];
       result.push(...rows.map(normalizeProduct));
+      options.onPage?.(page, rows.length);
       const sourcePageCount = Number(payload.meta?.pagination?.pageCount);
       if (Number.isFinite(sourcePageCount) && sourcePageCount > 0) {
         pageCount = sourcePageCount;
@@ -47,7 +50,10 @@ export function createStrapiClient(options: StrapiClientOptions) {
 
   async function downloadImage(url: string) {
     const absoluteUrl = resolveUrl(url);
-    const response = await fetch(absoluteUrl, { headers: { Authorization: `Bearer ${options.token}` } });
+    const response = await fetch(absoluteUrl, {
+      headers: { Authorization: `Bearer ${options.token}` },
+      signal: AbortSignal.timeout(60_000),
+    });
     if (!response.ok) throw new Error(`No se pudo descargar la imagen ${absoluteUrl}: ${response.status}`);
     return { url: absoluteUrl, response };
   }

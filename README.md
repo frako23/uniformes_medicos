@@ -4,15 +4,17 @@ Catálogo web de uniformes médicos construido con Astro. El catálogo público 
 
 ## Requisitos
 
-- Node.js 20.x y npm.
+- Node.js 24.x y npm.
 - PostgreSQL de desarrollo o producción.
 - Vercel Blob (o un proveedor compatible con el adaptador configurado).
+- Docker Desktop para PostgreSQL local.
 
 ## Instalación
 
 ```bash
 npm install
 Copy-Item .env.example .env
+npm run docker:up
 npm run db:migrate
 npm run owner:seed
 npm run dev
@@ -50,6 +52,9 @@ PUBLIC_SITE_URL=http://localhost:4321
 | --- | --- |
 | `npm run dev` | Servidor de desarrollo. |
 | `npm run build` | `astro check` y compilación de producción. |
+| `npm run docker:up` | Inicia PostgreSQL local en Docker. |
+| `npm run docker:ps` | Muestra el estado del contenedor PostgreSQL. |
+| `npm run docker:down` | Detiene el contenedor sin borrar sus datos. |
 | `npm run db:migrate` | Aplica migraciones versionadas. |
 | `npm run owner:seed` | Crea una sola cuenta propietaria. |
 | `npm run migrate:strapi -- --dry-run` | Lee y reporta la fuente sin escribir datos. |

@@ -6,7 +6,7 @@ Catálogo web de uniformes médicos con vitrina pública, bolsa/WhatsApp y panel
 
 ## Stack y decisiones vigentes
 
-- Astro 4 con TypeScript, React 18 y Tailwind CSS; aplicación única server-rendered (`output: "server"`) desplegada en Vercel Serverless con Node.js 20.
+- Astro 4 con TypeScript, React 18 y Tailwind CSS; aplicación única server-rendered (`output: "server"`) desplegada en Vercel Serverless con Node.js 24.
 - PostgreSQL es la fuente de verdad. Drizzle ORM/Kit y `postgres` gestionan el acceso y las migraciones SQL versionadas en `drizzle/`; Neon es el proveedor inicial recomendado.
 - Vercel Blob público almacena imágenes; sus metadatos y relaciones viven en PostgreSQL. No se introduce un frontend/backend separado.
 - El dominio vive en `src/server`; las rutas y endpoints en `src/pages`; esquema/cliente DB en `src/db`; operaciones de migración en `scripts/`.
@@ -16,7 +16,7 @@ Catálogo web de uniformes médicos con vitrina pública, bolsa/WhatsApp y panel
 
 ## Desarrollo local
 
-Requiere Node.js 20.x, npm, PostgreSQL y un token de Blob. Configura en `.env` `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `PUBLIC_SITE_URL` (`.env` nunca se versiona).
+Requiere Node.js 24.x, npm, PostgreSQL y un token de Blob. Configura en `.env` `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `PUBLIC_SITE_URL` (`.env` nunca se versiona).
 
 ```bash
 npm install
