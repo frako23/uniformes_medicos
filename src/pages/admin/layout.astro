@@ -1,0 +1,8 @@
+---
+import AdminLayout from "../../components/admin/AdminLayout.astro";
+
+const { title = "Panel administrativo" } = Astro.props;
+---
+<AdminLayout title={title} csrfToken={Astro.locals.csrfToken ?? ""}>
+  <slot />
+</AdminLayout>

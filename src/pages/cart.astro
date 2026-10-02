@@ -27,6 +27,7 @@ import Layout from "../layouts/Layout.astro";
       <p class="text-slate-500 text-sm">
         Revisa los productos que has seleccionado para comprar.
       </p>
+      <p id="cart-message" class="mt-3 text-sm text-amber-700" role="status"></p>
     </section>
 
     <div class="space-y-6" id="cart-container">
@@ -108,7 +109,7 @@ import Layout from "../layouts/Layout.astro";
       headers: { "Content-Type": "application/json" },
     });
 
-    const { data } = await response.json();
+    const { data, missingIds = [] } = await response.json();
     const container = document.getElementById("cart-container");
 
     const subtotalEl = document.getElementById("subtotal");
@@ -117,7 +118,8 @@ import Layout from "../layouts/Layout.astro";
     if (container && data && data.length > 0) {
       container.innerHTML = ""; // Limpiamos el cargando...
       let totalAccumulated = 0;
-      const URL_BASE = "https://strapi.frakodev.com";
+      const messageEl = document.getElementById("cart-message");
+      if (messageEl && missingIds.length) messageEl.innerText = "Algunos productos guardados ya no están disponibles y fueron retirados de la selección.";
       data.forEach((product: Producto) => {
         // Asumiendo que el precio está en item.price. Si no existe, cámbialo por el campo real
         const price = product.Precio || 0;
@@ -128,7 +130,7 @@ import Layout from "../layouts/Layout.astro";
           <div class="flex gap-4 p-4 bg-white rounded-xl border border-slate-100 cart-item-data animate-fade-in">
       <div class="group w-20 h-20 bg-white rounded-xl overflow-hidden flex-shrink-0 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] border border-slate-200/50 ring-4 ring-slate-50 p-1 transition-all duration-300 hover:ring-sky-50 hover:shadow-md">
   <img 
-    src="${URL_BASE}${product.Foto[0].url}" 
+    src="${product.Foto[0]?.url ?? "/logo2.jpg"}"
     alt="${product.Tipo}" 
     class="w-full h-full object-cover rounded-lg transition-transform duration-500 group-hover:scale-110" 
   />

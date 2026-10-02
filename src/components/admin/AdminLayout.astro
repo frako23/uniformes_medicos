@@ -1,0 +1,40 @@
+---
+interface Props {
+  title?: string;
+  csrfToken?: string;
+}
+
+const { title = "Panel administrativo", csrfToken = "" } = Astro.props;
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title} | Uniformes Médicos 2015</title>
+  </head>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <header class="border-b border-slate-200 bg-white">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+        <a href="/admin" class="font-bold">Panel de administración</a>
+        <nav class="flex items-center gap-4 text-sm" aria-label="Administración">
+          <a href="/admin/productos" class="hover:underline">Productos</a>
+          <a href="/" class="hover:underline">Ver vitrina</a>
+          <button id="logout" data-csrf={csrfToken} class="rounded-md border border-slate-300 px-3 py-2 hover:bg-slate-50">Salir</button>
+        </nav>
+      </div>
+    </header>
+    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <slot />
+    </main>
+    <script>
+      const button = document.querySelector<HTMLButtonElement>("#logout");
+      button?.addEventListener("click", async () => {
+        await fetch("/api/admin/auth/logout", {
+          method: "POST",
+          headers: { "x-csrf-token": button.dataset.csrf ?? "" },
+        });
+        window.location.href = "/admin/login";
+      });
+    </script>
+  </body>
+</html>

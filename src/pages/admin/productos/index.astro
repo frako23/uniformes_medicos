@@ -1,0 +1,37 @@
+---
+import AdminLayout from "../layout.astro";
+import { listAdminProducts } from "../../../server/catalog/admin-products";
+
+const result = await listAdminProducts({ page: 1, pageSize: 100 });
+---
+<AdminLayout title="Productos">
+  <section class="space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold">Productos</h1>
+        <p class="mt-1 text-slate-600">{result.data.length} productos en esta página.</p>
+      </div>
+      <a href="/admin/productos/nuevo" class="rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">Nuevo producto</a>
+    </div>
+    {result.data.length === 0 ? (
+      <p class="rounded-xl bg-white p-6 text-slate-600">No hay productos registrados.</p>
+    ) : (
+      <div class="overflow-x-auto rounded-xl bg-white shadow-sm">
+        <table class="min-w-full text-left text-sm">
+          <thead class="border-b border-slate-200 text-slate-500"><tr><th class="px-4 py-3">Producto</th><th class="px-4 py-3">Marca</th><th class="px-4 py-3">Precio</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3"></th></tr></thead>
+          <tbody>
+            {result.data.map((product) => (
+              <tr class="border-b border-slate-100 last:border-0">
+                <td class="px-4 py-3 font-medium">{product.Tipo}</td>
+                <td class="px-4 py-3">{product.Marca}</td>
+                <td class="px-4 py-3">${product.Precio.toFixed(2)}</td>
+                <td class="px-4 py-3">{product.isAvailable ? "Disponible" : "No disponible"}</td>
+                <td class="px-4 py-3 text-right"><a class="font-semibold underline" href={`/admin/productos/${product.documentId}`}>Editar</a></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </section>
+</AdminLayout>

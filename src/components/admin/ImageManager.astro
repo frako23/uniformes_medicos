@@ -1,0 +1,43 @@
+---
+import type { ProductWithRelations } from "../../server/catalog/mapper";
+
+interface Props { product: ProductWithRelations; csrfToken: string; }
+const { product, csrfToken } = Astro.props;
+const images = product.images.filter((image) => !image.deletedAt).sort((a, b) => a.position - b.position);
+---
+<div id="image-manager" data-product={product.legacyDocumentId} data-csrf={csrfToken} class="space-y-4">
+  <form id="image-upload" class="grid gap-3 sm:grid-cols-[1fr_1fr_auto]" enctype="multipart/form-data">
+    <input name="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif" required class="rounded-lg border border-slate-300 px-3 py-2" />
+    <input name="altText" placeholder="Texto alternativo" class="rounded-lg border border-slate-300 px-3 py-2" />
+    <button class="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white" type="submit">Subir imagen</button>
+  </form>
+  <p id="image-message" class="text-sm text-slate-600" role="status"></p>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    {images.map((image, index) => <figure class="rounded-lg border border-slate-200 p-2"><img src={image.storageUrl} alt={image.altText ?? product.legacyTypeLabel} class="aspect-square w-full rounded object-cover" loading="lazy" /><figcaption class="mt-2 flex items-center justify-between gap-2 text-xs"><span>Orden {index + 1}</span><span class="flex gap-2"><button type="button" data-move={image.id} data-position={Math.max(0, index - 1)} disabled={index === 0} aria-label="Mover imagen arriba">↑</button><button type="button" data-move={image.id} data-position={Math.min(images.length - 1, index + 1)} disabled={index === images.length - 1} aria-label="Mover imagen abajo">↓</button><button type="button" data-delete={image.id} class="text-red-700 underline">Retirar</button></span></figcaption></figure>)}
+  </div>
+</div>
+<script>
+  const manager = document.querySelector<HTMLElement>("#image-manager");
+  const upload = document.querySelector<HTMLFormElement>("#image-upload");
+  const message = document.querySelector<HTMLElement>("#image-message");
+  const csrf = manager?.dataset.csrf ?? "";
+  const product = manager?.dataset.product ?? "";
+  upload?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const response = await fetch(`/api/admin/products/${product}/images`, { method: "POST", headers: { "x-csrf-token": csrf }, body: new FormData(upload) });
+    message!.textContent = response.ok ? "Imagen cargada. Recargando…" : "No se pudo cargar la imagen.";
+    if (response.ok) window.location.reload();
+  });
+  manager?.addEventListener("click", async (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-delete]");
+    const move = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-move]");
+    if (move) {
+      await fetch(`/api/admin/products/${product}/images/${move.dataset.move}`, { method: "PATCH", headers: { "Content-Type": "application/json", "x-csrf-token": csrf }, body: JSON.stringify({ position: Number(move.dataset.position) }) });
+      window.location.reload();
+      return;
+    }
+    if (!button || !confirm("¿Retirar esta imagen?")) return;
+    const response = await fetch(`/api/admin/products/${product}/images/${button.dataset.delete}`, { method: "DELETE", headers: { "x-csrf-token": csrf } });
+    if (response.ok) window.location.reload(); else message!.textContent = "No se pudo retirar la imagen.";
+  });
+</script>

@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "id": 1,
+      "documentId": "fixture-product-1",
+      "attributes": {
+        "Tipo": "Bata",
+        "Fabricantes": "Fabricante",
+        "Marca": "Marca",
+        "Genero": "Unisex",
+        "Precio": 20,
+        "Color": "Blanca",
+        "publishedAt": "2024-01-01T00:00:00.000Z",
+        "Talla": { "data": [{ "id": 101, "attributes": { "Talla": "M", "cantidad_actual": 4 } }] },
+        "Foto": { "data": [{ "id": 201, "attributes": { "url": "/uploads/fixture.jpg", "mime": "image/jpeg" } }] }
+      }
+    }
+  ],
+  "meta": { "pagination": { "page": 1, "pageSize": 1, "pageCount": 2, "total": 2 } }
+}

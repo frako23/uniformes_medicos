@@ -1,0 +1,19 @@
+---
+import type { ProductVariant } from "../../db/schema";
+
+interface Props { variants?: ProductVariant[]; }
+const { variants = [] } = Astro.props;
+---
+<fieldset class="space-y-3 rounded-xl border border-slate-200 p-4">
+  <legend class="px-2 text-sm font-semibold">Tallas y existencias</legend>
+  <div id="variants" class="space-y-3">
+    {(variants.length ? variants : [{ sizeLabel: "", quantity: 0 } as ProductVariant]).map((variant) => (
+      <div class="variant-row grid grid-cols-[1fr_1fr_auto] gap-3">
+        <label class="text-sm">Talla<input name="sizeLabel" value={variant.sizeLabel} required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+        <label class="text-sm">Cantidad<input name="quantity" type="number" min="0" step="1" value={variant.quantity} required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+        <button type="button" class="remove-variant self-end rounded-lg border border-slate-300 px-3 py-2" aria-label="Eliminar talla">×</button>
+      </div>
+    ))}
+  </div>
+  <button id="add-variant" type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">Agregar talla</button>
+</fieldset>

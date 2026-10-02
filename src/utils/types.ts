@@ -1,68 +1,45 @@
-// Interfaces base para el manejo de imágenes
-interface ImageFormat {
-  ext: string;
-  url: string;
-  hash: string;
-  mime: string;
-  name: string;
-  path: string | null;
-  size: number;
-  width: number;
-  height: number;
-  sizeInBytes: number;
-}
-
-interface ImageFormats {
-  large?: ImageFormat;
-  small?: ImageFormat;
-  medium?: ImageFormat;
-  thumbnail?: ImageFormat;
-}
-
-interface Foto {
-  id: number;
-  documentId: string;
-  name: string;
+export interface Foto {
+  id: number | string;
+  documentId?: string;
+  name?: string;
   alternativeText: string | null;
-  caption: string | null;
-  focalPoint: string | null;
-  width: number;
-  height: number;
-  formats: ImageFormats;
-  hash: string;
-  ext: string;
-  mime: string;
-  size: number;
+  caption?: string | null;
+  width?: number | null;
+  height?: number | null;
   url: string;
-  previewUrl: string | null;
-  provider: string;
-  provider_metadata: any | null;
-  createdAt: string;
-  updatedAt: string;
-  publishedAt: string;
+  position?: number;
+  mime?: string;
+  size?: number;
+  formats?: Record<string, { url: string; width: number; height: number }>;
 }
 
-// Interfaz para el componente repetible de Tallas
 export interface TallaStock {
-  id: number;
-  Talla: string; // 'S' | 'M' | 'L' | 'XL' (puedes usar un union type si son fijas)
+  id: number | string;
+  Talla: string;
   cantidad_actual: number;
 }
 
-// Interfaz principal del Producto
+export type Genero = "Unisex" | "Dama" | "Caballero";
+
 export interface Producto {
   id: number;
   documentId: string;
   Tipo: string;
   Fabricantes: string;
   Marca: string;
-  Genero: "Unisex" | "Dama" | "Caballero";
+  Genero: Genero;
   Precio: number;
   SKU: string | null;
   Color: string;
   Talla: TallaStock[];
   Foto: Foto[];
-  createdAt: string;
-  updatedAt: string;
-  publishedAt: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  publishedAt?: string | null;
+  isAvailable?: boolean;
+}
+
+export interface CartDetailsResponse {
+  data: Producto[];
+  missingIds: number[];
 }

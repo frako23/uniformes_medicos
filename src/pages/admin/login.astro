@@ -1,0 +1,31 @@
+---
+const error = Astro.url.searchParams.get("error");
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Acceso administrativo | Uniformes Médicos 2015</title>
+  </head>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <main class="mx-auto flex min-h-screen max-w-md items-center px-6 py-12">
+      <form method="post" action="/api/admin/auth/login" class="w-full space-y-6 rounded-2xl bg-white p-8 shadow-lg">
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-widest text-slate-500">Uniformes Médicos 2015</p>
+          <h1 class="mt-2 text-3xl font-bold">Panel privado</h1>
+          <p class="mt-2 text-sm text-slate-600">Acceso exclusivo para la propietaria.</p>
+        </div>
+        {error && <p class="rounded-lg bg-red-50 p-3 text-sm text-red-700">El correo o la contraseña no son válidos.</p>}
+        <label class="block text-sm font-medium" for="email">
+          Correo
+          <input id="email" name="email" type="email" autocomplete="username" required class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300" />
+        </label>
+        <label class="block text-sm font-medium" for="password">
+          Contraseña
+          <input id="password" name="password" type="password" autocomplete="current-password" required class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300" />
+        </label>
+        <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">Entrar</button>
+      </form>
+    </main>
+  </body>
+</html>

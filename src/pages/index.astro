@@ -5,36 +5,17 @@ import LikeButton from "../components/LikeButton.astro";
 import ShareButton from "../components/ShareButton.astro";
 import SizeStock from "../components/SizeStock.astro";
 import Layout from "../layouts/Layout.astro";
+import { listPublicProducts } from "../server/catalog/public-products";
 import type { Producto } from "../utils/types";
 
-const STRAPI_URL = import.meta.env.STRAPI_URL || "https://strapi.frakodev.com";
-const STRAPI_TOKEN = import.meta.env.STRAPI_TOKEN;
-
-// El parámetro pagination[limit]=-1 desactiva el límite de 25
-// Usamos un pageSize de 1000 para asegurar que entren todos tus productos actuales y futuros
-// 1. Pedimos los primeros 100
-const urlPage1 = `${STRAPI_URL}/api/productos?populate=*&pagination[page]=1&pagination[pageSize]=100`;
-// 2. Pedimos los siguientes 100 (del 101 al 200)
-const urlPage2 = `${STRAPI_URL}/api/productos?populate=*&pagination[page]=2&pagination[pageSize]=100`;
-// 3. Pedimos los siguientes 100 (del 201 al 300)
-const urlPage3 = `${STRAPI_URL}/api/productos?populate=*&pagination[page]=3&pagination[pageSize]=100`;
-
-const [res1, res2, res3] = await Promise.all([
-  fetch(urlPage1, { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }),
-  fetch(urlPage2, { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }),
-  fetch(urlPage3, { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }),
-]);
-
-const json1 = await res1.json();
-const json2 = await res2.json();
-const json3 = await res3.json();
-
-// 3. Unimos ambos arrays en uno solo
-const uniformes = [
-  ...(json1.data || []),
-  ...(json2.data || []),
-  ...(json3.data || []),
-];
+let uniformes: Producto[] = [];
+let catalogError = false;
+try {
+  uniformes = await listPublicProducts();
+} catch (error) {
+  catalogError = true;
+  console.error("No se pudo cargar el catálogo público", error instanceof Error ? error.message : error);
+}
 
 const categories = [
   "Todo",
@@ -143,6 +124,8 @@ const genderStyles = {
           {uniformes.length} Productos
         </span>
       </div>
+      {catalogError && <p class="px-6 pb-4 text-sm text-red-700">No pudimos cargar el catálogo en este momento. Intenta nuevamente más tarde.</p>}
+      {!catalogError && uniformes.length === 0 && <p class="px-6 pb-4 text-sm text-slate-600">No hay productos disponibles por ahora.</p>}
     </div>
   </header>
 
@@ -226,7 +209,7 @@ const genderStyles = {
                     product.Foto.map((foto, index) => (
                       <div class="slider-item" data-index={index}>
                         <img
-                          src={`${STRAPI_URL}${foto.url}`}
+                          src={foto.url}
                           alt={`${product.Tipo} - ${index + 1}`}
                           class="w-full h-full object-cover pointer-events-none"
                           loading="lazy"
