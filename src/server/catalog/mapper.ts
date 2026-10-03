@@ -1,4 +1,5 @@
 import type { Product, ProductImage, ProductVariant } from "../../db/schema";
+import { compareSizeLabels } from "../../utils/catalog-filters";
 import type { Producto } from "../../utils/types";
 
 export type ProductWithRelations = Product & {
@@ -18,7 +19,7 @@ export function toProducto(product: ProductWithRelations): Producto {
     SKU: product.sku,
     Color: product.color,
     Talla: [...product.variants]
-      .sort((a, b) => a.sizeLabel.localeCompare(b.sizeLabel))
+      .sort((a, b) => compareSizeLabels(a.sizeLabel, b.sizeLabel))
       .map((variant) => ({
         id: variant.legacyId ?? variant.id,
         Talla: variant.sizeLabel,

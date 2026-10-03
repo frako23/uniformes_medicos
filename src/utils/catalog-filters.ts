@@ -20,8 +20,28 @@ export interface CatalogFilterRecord {
   positiveSizeLabels: string[];
 }
 
+const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL"] as const;
+const SIZE_RANK = new Map<string, number>(SIZE_ORDER.map((label, index) => [label, index]));
+
 function uniqueLabels(labels: string[]) {
   return [...new Set(labels.map((label) => label.trim()).filter(Boolean))];
+}
+
+export function compareSizeLabels(left: string, right: string) {
+  const leftLabel = left.trim().toLocaleUpperCase();
+  const rightLabel = right.trim().toLocaleUpperCase();
+  const leftRank = SIZE_RANK.get(leftLabel);
+  const rightRank = SIZE_RANK.get(rightLabel);
+
+  if (leftRank !== undefined && rightRank !== undefined) return leftRank - rightRank;
+  if (leftRank !== undefined) return -1;
+  if (rightRank !== undefined) return 1;
+
+  return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+}
+
+export function sortSizeLabels(labels: string[]) {
+  return [...labels].sort(compareSizeLabels);
 }
 
 export function normalizeTypeLabel(typeLabel: string) {
@@ -64,7 +84,7 @@ export function getAvailableSizeLabels(
     .filter((record) => isCompatibleGender(record.gender, selectedGender))
     .flatMap((record) => record.positiveSizeLabels);
 
-  return uniqueLabels(labels).sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+  return sortSizeLabels(uniqueLabels(labels));
 }
 
 export function matchesCatalogRecord(

@@ -4,13 +4,26 @@ import {
   getAvailableSizeLabels,
   getGarmentGroup,
   matchesCatalogRecord,
+  sortSizeLabels,
 } from "../../src/utils/catalog-filters";
 import { catalogFilterFixtures } from "./catalog-filter-fixtures";
 
 describe("guided catalog filters", () => {
+  it("sorts sizes from smallest to largest", () => {
+    expect(sortSizeLabels(["XXL", "M", "XS", "XL", "XXS", "L", "S"])).toEqual([
+      "XXS",
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL",
+    ]);
+  });
+
   it("offers only positive-stock sizes for the selected gender and includes unisex", () => {
-    expect(getAvailableSizeLabels(catalogFilterFixtures, "Dama")).toEqual(["M", "S", "XL"]);
-    expect(getAvailableSizeLabels(catalogFilterFixtures, "Caballero")).toEqual(["L", "M", "XL"]);
+    expect(getAvailableSizeLabels(catalogFilterFixtures, "Dama")).toEqual(["S", "M", "XL"]);
+    expect(getAvailableSizeLabels(catalogFilterFixtures, "Caballero")).toEqual(["M", "L", "XL"]);
   });
 
   it("classifies bata labels with accents or extra detail", () => {
