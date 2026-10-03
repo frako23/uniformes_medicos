@@ -20,6 +20,13 @@ export async function updateLastLogin(userId: string) {
     .where(eq(adminUsers.id, userId));
 }
 
+export async function updateOwnerPassword(userId: string, passwordHash: string) {
+  await db()
+    .update(adminUsers)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(and(eq(adminUsers.id, userId), eq(adminUsers.role, "owner")));
+}
+
 export async function createSessionRecord(input: {
   userId: string;
   tokenHash: string;

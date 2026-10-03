@@ -8,7 +8,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (!isAdminPage && !isAdminApi) return next();
 
-  if (pathname === "/admin/login") return next();
+  if (pathname === "/admin/login" || pathname === "/api/admin/auth/login") return next();
 
   const session = await getSession(context.request);
   if (!session) {

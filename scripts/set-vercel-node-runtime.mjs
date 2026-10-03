@@ -5,8 +5,19 @@ const functionsDirectory = path.resolve(".vercel", "output", "functions");
 const runtime = "nodejs24.x";
 
 let updatedFunctions = 0;
+let entries;
 
-for (const entry of await readdir(functionsDirectory, { withFileTypes: true })) {
+try {
+  entries = await readdir(functionsDirectory, { withFileTypes: true });
+} catch (error) {
+  if (error.code === "ENOENT") {
+    console.log("[vercel] Build Node local detectado; no se actualizaron funciones Vercel.");
+    process.exit(0);
+  }
+  throw error;
+}
+
+for (const entry of entries) {
   if (!entry.isDirectory()) continue;
 
   const configPath = path.join(functionsDirectory, entry.name, ".vc-config.json");

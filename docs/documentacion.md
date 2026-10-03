@@ -11,7 +11,7 @@ PostgreSQL ──► servicios de catálogo ──► Astro: catálogo, detalle 
 Vercel Blob ──► URLs públicas de imágenes optimizadas/cacheables
 ```
 
-La aplicación usa Astro con salida server y el adaptador serverless de Vercel. PostgreSQL es la fuente de verdad del catálogo después del corte. Strapi solo interviene en los scripts controlados de importación y verificación.
+La aplicación usa Astro con salida server. En un VPS se compila con el adaptador Node en modo standalone; si el build se ejecuta en Vercel, se selecciona el adaptador serverless de Vercel. PostgreSQL es la fuente de verdad del catálogo después del corte. Strapi solo interviene en los scripts controlados de importación y verificación.
 
 ## Módulos principales
 
@@ -32,13 +32,15 @@ Las imágenes conservan URL/ID de origen y metadatos en PostgreSQL, pero el nave
 
 ## Panel administrativo
 
-Existe una única cuenta con rol `owner`, creada mediante `npm run owner:seed`. No hay registro público ni asignación de roles desde el navegador. Las rutas `/admin/**` y `/api/admin/**` exigen sesión; las mutaciones requieren cookie de sesión, origen válido y token CSRF.
+Existe una única cuenta con rol `owner`, creada mediante `npm run owner:seed`. Si se necesita restablecer su contraseña, `npm run owner:reset` actualiza el hash desde `.env` y revoca sus sesiones anteriores. No hay registro público ni asignación de roles desde el navegador. Las rutas `/admin/**` y `/api/admin/**` exigen sesión; las mutaciones requieren cookie de sesión, origen válido y token CSRF.
 
 ## Bolsa y WhatsApp
 
 `POST /api/cart-details` recibe una lista acotada de IDs numéricos positivos, devuelve los productos disponibles y enumera `missingIds` para favoritos obsoletos o productos sin stock. El mensaje de WhatsApp se compone exclusivamente a partir de esos registros actuales.
 
 ## Desarrollo
+
+La aplicación se conecta al PostgreSQL instalado directamente mediante `DATABASE_URL`. Si la aplicación y la base de datos están en el mismo servidor, se recomienda usar `127.0.0.1` o `localhost` en esa URL. Docker no es un requisito de ejecución; el `docker-compose.yml` del repositorio solo sirve como alternativa para un entorno local aislado.
 
 ```bash
 npm install

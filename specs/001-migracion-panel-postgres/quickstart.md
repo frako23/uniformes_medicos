@@ -5,7 +5,7 @@ Este documento describe cómo demostrar la feature cuando sea implementada. No c
 ## Prerequisites
 
 - Node.js 24.x y npm.
-- Docker Desktop con PostgreSQL local, o una base PostgreSQL de desarrollo separada de producción.
+- PostgreSQL 16 o superior instalado directamente, con una base PostgreSQL de desarrollo separada de producción.
 - Proyecto de Vercel enlazado y un store Vercel Blob de desarrollo, o credenciales equivalentes para el proveedor elegido.
 - Acceso de lectura a Strapi: `STRAPI_URL` y `STRAPI_TOKEN`.
 - Una cuenta de propietaria configurada mediante el script de inicialización; no se crea desde la interfaz pública.
