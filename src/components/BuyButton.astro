@@ -16,7 +16,9 @@ const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(messag
 <a
   href={whatsappUrl}
   target="_blank"
-  class="active:scale-90 transition-transform"
+  rel="noopener noreferrer"
+  aria-label={`Consultar ${product.Tipo} por WhatsApp`}
+  class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-1 active:scale-90 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
 >
-  <span class="material-symbols-outlined text-slate-500"> shopping_cart </span>
+  <span class="material-symbols-outlined text-slate-500" aria-hidden="true"> shopping_cart </span>
 </a>

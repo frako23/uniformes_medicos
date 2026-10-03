@@ -6,38 +6,24 @@ import ShareButton from "../components/ShareButton.astro";
 import SizeStock from "../components/SizeStock.astro";
 import Layout from "../layouts/Layout.astro";
 import { listPublicProducts } from "../server/catalog/public-products";
+import { toCatalogFilterRecord } from "../utils/catalog-filters";
 import type { Producto } from "../utils/types";
 
 let uniformes: Producto[] = [];
 let catalogError = false;
+
 try {
   uniformes = await listPublicProducts();
 } catch (error) {
   catalogError = true;
-  console.error("No se pudo cargar el catálogo público", error instanceof Error ? error.message : error);
+  console.error(
+    "No se pudo cargar el catálogo público",
+    error instanceof Error ? error.message : error,
+  );
 }
 
-const categories = [
-  "Todo",
-  "Bata",
-  "Uniforme bota recta",
-  "Uniforme bota Jogger",
-  "Top",
-  "Top estampado",
-  "Mono",
-  "Chaqueta",
-  "Bata larga sin cuello",
-  "Bata con cierre y cuello redondo",
-  "Bata con cierre y cuello normal corta",
-  "Bata con cierre y cuello normal larga",
-  "Chaqueta gruesa",
-  "Chaqueta reversible",
-  "Pantalon",
-  "Uniforme Enfermera",
-  "Blusas Enfermera",
-  "Uniforme Odontológico",
-  "Uniforme bota ajustable",
-];
+const filterRecords = uniformes.map(toCatalogFilterRecord);
+const filterData = JSON.stringify(filterRecords).replace(/</g, "\\u003c");
 
 const genderStyles = {
   Dama: {
@@ -58,522 +44,706 @@ const genderStyles = {
     text: "text-slate-700",
     border: "border-slate-200",
   },
-};
+} as const;
 ---
 
 <Layout title="Uniformes Médicos 2015 | Catálogo">
   <header
-    class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md px-6 py-3 border-b border-slate-100"
+    class="fixed top-0 z-50 w-full border-b border-slate-100 bg-white/90 px-4 py-3 backdrop-blur-md sm:px-6"
   >
-    <div class="flex justify-between items-center">
-      <!-- <div class="flex items-center gap-4">
-        <button class="p-2 rounded-full hover:bg-slate-100 transition-colors">
-          <span class="material-symbols-outlined text-[#005d90]">search</span>
-        </button>
-      </div> -->
-      <h1
-        class="text-lg font-extrabold text-[#0077B6] tracking-tighter font-['Manrope']"
+    <div class="mx-auto flex max-w-6xl items-center justify-between">
+      <a
+        href="/"
+        class="rounded-lg text-lg font-extrabold tracking-tighter text-[#0077B6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+        aria-label="Ir al inicio de Uniformes Médicos 2015"
       >
         <span class="text-[#9D6CB2]">Uniformes</span> Médicos 2015
-      </h1>
+      </a>
       <FavBag />
-    </div>
-    <div class="flex">
-      <section class="px-6 py-4 max-w-6xl mx-auto">
-        <div class="relative group">
-          <!-- <div
-        class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-      >
-        <span
-          class="material-symbols-outlined text-[#005d90] text-sm opacity-70"
-        >
-          filter_list
-        </span>
-      </div> -->
-
-          <select
-            id="category-select"
-            class="block w-full pl-10 pr-10 py-3 text-[11px] font-bold font-['Manrope'] uppercase tracking-widest bg-white border border-slate-200 text-slate-700 rounded-xl shadow-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#005d90]/20 focus:border-[#005d90] transition-all cursor-pointer"
-          >
-            {
-              categories.map((cat) => (
-                <option
-                  value={cat === "Todo" ? "" : cat}
-                  class="font-sans normal-case"
-                >
-                  {cat}
-                </option>
-              ))
-            }
-          </select>
-
-          <div
-            class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
-          >
-            <span class="material-symbols-outlined text-slate-400 text-sm">
-              unfold_more
-            </span>
-          </div>
-        </div>
-      </section>
-      <div class="pr-6 pb-2 max-w-6xl mx-auto flex items-center gap-2">
-        <span
-          id="sku-count"
-          class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full font-['Manrope']"
-        >
-          {uniformes.length} Productos
-        </span>
-      </div>
-      {catalogError && <p class="px-6 pb-4 text-sm text-red-700">No pudimos cargar el catálogo en este momento. Intenta nuevamente más tarde.</p>}
-      {!catalogError && uniformes.length === 0 && <p class="px-6 pb-4 text-sm text-slate-600">No hay productos disponibles por ahora.</p>}
     </div>
   </header>
 
-  <main class="pt-16 pb-24 max-w-8xl mx-auto">
-    <!-- <section
-      class="py-6 overflow-x-auto no-scrollbar flex gap-6 px-6 bg-[#f7f9fb]"
-    >
-      {
-        ["Damas", "Caballeros", "Unisex"].map((cat) => (
-          <div class="flex flex-col items-center gap-2 flex-shrink-0">
-            <div class="w-16 h-16 rounded-full p-0.5 bg-gradient-to-tr from-[#005d90] to-[#7a4c8f]">
-              <div class="w-full h-full rounded-full border-2 border-white overflow-hidden bg-slate-200">
-                <div class="w-full h-full bg-slate-300" />
-              </div>
-            </div>
-            <span class="text-[10px] font-['Manrope'] font-bold text-[#191c1e] uppercase tracking-widest text-center">
-              {cat}
-            </span>
+  <main
+    id="catalog-main"
+    class="min-h-screen overflow-x-hidden px-4 pb-24 pt-24 sm:px-6"
+  >
+    {catalogError && (
+      <section
+        class="mx-auto max-w-xl rounded-3xl border border-red-100 bg-white p-8 text-center shadow-sm"
+        data-testid="catalog-error"
+        role="alert"
+      >
+        <span class="material-symbols-outlined mb-3 text-5xl text-red-300" aria-hidden="true">error</span>
+        <h1 class="text-xl font-bold text-slate-900">No pudimos cargar el catálogo</h1>
+        <p class="mt-2 text-sm leading-6 text-slate-600">
+          Intenta nuevamente en unos momentos o escríbenos para consultar la disponibilidad.
+        </p>
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <button
+            type="button"
+            data-retry-catalog
+            class="min-h-11 rounded-xl bg-[#0077B6] px-5 py-3 text-sm font-bold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+          >
+            Reintentar
+          </button>
+          <a
+            href="https://wa.me/584241468579?text=Hola!%20Quisiera%20consultar%20la%20disponibilidad%20de%20sus%20uniformes"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+          >
+            Contactar por WhatsApp
+          </a>
+        </div>
+      </section>
+    )}
+
+    {!catalogError && uniformes.length === 0 && (
+      <section
+        class="mx-auto max-w-xl rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-sm"
+        data-testid="catalog-empty"
+      >
+        <span class="material-symbols-outlined mb-3 text-5xl text-slate-300" aria-hidden="true">inventory_2</span>
+        <h1 class="text-xl font-bold text-slate-900">No hay productos disponibles por ahora</h1>
+        <p class="mt-2 text-sm leading-6 text-slate-600">
+          Escríbenos y te ayudaremos a consultar nuevos ingresos o alternativas.
+        </p>
+        <a
+          href="https://wa.me/584241468579?text=Hola!%20Quisiera%20consultar%20los%20uniformes%20disponibles"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#25D366] px-5 py-3 text-sm font-bold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2"
+        >
+          Consultar por WhatsApp
+        </a>
+      </section>
+    )}
+
+    <div class="mx-auto max-w-6xl" hidden={catalogError || uniformes.length === 0}>
+      <section
+        id="guided-flow"
+        class="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-8"
+        aria-labelledby="guided-question"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-[#0077B6]">Catálogo personalizado</p>
+            <h1 id="guided-question" class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+              ¿Qué deseas ver?
+            </h1>
           </div>
-        ))
-      }
-    </section> -->
+          <p id="guided-progress" class="shrink-0 rounded-full bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600" aria-live="polite">
+            Paso 1 de 3
+          </p>
+        </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 px-4 max-w-6xl mx-auto">
-    </div>
-    <div
-      class="grid grid-cols-1 md:grid-cols-2 gap-4 px-0 md:px-4 max-w-6xl mx-auto mt-16"
-    >
-      {
-        uniformes.map((product: Producto) => {
-          const style = genderStyles[product.Genero] || genderStyles.Unisex;
+        <p id="guided-help" class="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+          Responde tres preguntas sencillas y te mostraremos prendas disponibles para ti.
+        </p>
 
-          return (
-            <article
-              data-gender={product.Genero}
-              data-category={product.Tipo}
-              class={`product-card ${style.border} overflow-hidden md:rounded-xl shadow-sm border border-slate-100`}
+        <div class="mt-7" data-guided-step="gender" data-testid="guided-step-gender">
+          <fieldset>
+            <legend class="sr-only">Elige si buscas ropa de damas o caballeros</legend>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                data-gender-choice="Dama"
+                class="guided-choice min-h-16 rounded-2xl border-2 border-pink-100 bg-pink-50 px-5 py-4 text-left text-base font-extrabold text-pink-800 transition hover:border-pink-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2"
+              >
+                <span class="material-symbols-outlined mr-2 align-middle" aria-hidden="true">female</span>
+                Damas
+              </button>
+              <button
+                type="button"
+                data-gender-choice="Caballero"
+                class="guided-choice min-h-16 rounded-2xl border-2 border-blue-100 bg-blue-50 px-5 py-4 text-left text-base font-extrabold text-blue-800 transition hover:border-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              >
+                <span class="material-symbols-outlined mr-2 align-middle" aria-hidden="true">male</span>
+                Caballeros
+              </button>
+            </div>
+          </fieldset>
+          <button
+            type="button"
+            data-view-all
+            class="mt-5 min-h-11 rounded-xl px-3 py-2 text-sm font-bold text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-[#0077B6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+          >
+            Ver todo el catálogo
+          </button>
+        </div>
+
+        <div class="guided-step mt-7" data-guided-step="sizes" data-testid="guided-step-sizes" hidden>
+          <fieldset>
+            <legend class="sr-only">Elige una o varias tallas</legend>
+            <div id="size-options" class="grid grid-cols-2 gap-3 sm:grid-cols-4" role="group" aria-label="Tallas disponibles"></div>
+            <p id="size-empty" class="rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-800" hidden>
+              No encontramos tallas disponibles para esta selección. Puedes volver y cambiar el género o ver todo el catálogo.
+            </p>
+            <button
+              type="button"
+              data-any-size
+              aria-label="Cualquier talla"
+              class="mt-3 min-h-14 w-full rounded-2xl border-2 border-dashed border-slate-300 px-4 py-3 text-left text-sm font-bold text-slate-700 transition hover:border-[#0077B6] hover:text-[#0077B6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+              aria-pressed="false"
             >
-              <div class="flex justify-between items-center gap-3 p-4">
-                <div class="flex items-center gap-3">
-                  {" "}
-                  {/* items-center alinea verticalmente todo el contenido */}
-                  <div
-                    class={`flex items-center justify-center w-9 h-9 rounded-xl border ${style.bg} ${style.border} transition-all duration-300 shadow-sm flex-shrink-0`}
-                  >
-                    <span
-                      class={`material-symbols-outlined ${style.text} !text-[20px] font-light leading-none`}
-                    >
-                      {style.icon}
-                    </span>
-                  </div>
-                  <span
-                    class={`text-[10px] font-bold uppercase tracking-[0.1em] leading-none ${style.text}`}
-                  >
-                    {product.Genero}
-                  </span>
-                </div>
+              <span class="material-symbols-outlined mr-2 align-middle" aria-hidden="true">all_inclusive</span>
+              Cualquier talla
+              <span class="mt-1 block text-xs font-normal text-slate-500">Continuar sin restringir por talla</span>
+            </button>
+          </fieldset>
+          <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+            <button
+              type="button"
+              data-guided-back="gender"
+              class="min-h-11 rounded-xl px-4 py-3 text-sm font-bold text-slate-600 underline decoration-slate-300 underline-offset-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+            >
+              Volver
+            </button>
+            <button
+              type="button"
+              data-size-continue
+              class="min-h-11 rounded-xl bg-[#0077B6] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#005d90] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Continuar
+            </button>
+          </div>
+        </div>
 
-                <div>
-                  <p class="text-sm font-bold font-['Manrope'] leading-tight">
-                    {product.Fabricantes}
-                  </p>
-                  <p class="text-[10px] text-[#404850] font-medium tracking-wide uppercase">
-                    {product.Marca}
-                  </p>
-                </div>
-              </div>
+        <div class="guided-step mt-7" data-guided-step="garment" data-testid="guided-step-garment" hidden>
+          <fieldset>
+            <legend class="sr-only">Elige entre uniformes y batas</legend>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                data-garment-choice="uniformes"
+                class="min-h-16 rounded-2xl border-2 border-[#0077B6]/20 bg-sky-50 px-5 py-4 text-left text-base font-extrabold text-[#005d90] transition hover:border-[#0077B6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+              >
+                <span class="material-symbols-outlined mr-2 align-middle" aria-hidden="true">medical_services</span>
+                Uniformes
+              </button>
+              <button
+                type="button"
+                data-garment-choice="batas"
+                class="min-h-16 rounded-2xl border-2 border-[#9D6CB2]/20 bg-purple-50 px-5 py-4 text-left text-base font-extrabold text-[#7a4c8f] transition hover:border-[#9D6CB2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9D6CB2] focus-visible:ring-offset-2"
+              >
+                <span class="material-symbols-outlined mr-2 align-middle" aria-hidden="true">lab_research</span>
+                Batas
+              </button>
+            </div>
+          </fieldset>
+          <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
+            <button
+              type="button"
+              data-guided-back="sizes"
+              class="min-h-11 rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-600 underline decoration-slate-300 underline-offset-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+            >
+              Volver a tallas
+            </button>
+            <button
+              type="button"
+              data-view-all
+              class="min-h-11 rounded-xl px-4 py-3 text-sm font-bold text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-[#0077B6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+            >
+              Ver todo el catálogo
+            </button>
+          </div>
+        </div>
 
-              <div class="relative group overflow-hidden">
-                <button
-                  class="prev-btn absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm text-slate-800 hidden md:group-hover:flex items-center justify-center shadow-md hover:bg-white transition-all active:scale-90"
-                  data-direction="-1"
+        <div id="guided-status" class="sr-only" role="status" aria-live="polite"></div>
+      </section>
+
+      <section
+        id="guided-results"
+        class="mt-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-8"
+        data-testid="guided-results"
+        hidden
+        aria-labelledby="results-title"
+      >
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-[0.18em] text-[#0077B6]">Tu selección</p>
+            <h2 id="results-title" class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Prendas disponibles</h2>
+            <p id="results-count" class="mt-2 text-sm text-slate-600" aria-live="polite"></p>
+          </div>
+          <button
+            type="button"
+            data-view-all
+            class="min-h-11 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:border-[#0077B6] hover:text-[#0077B6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+          >
+            Ver todo
+          </button>
+        </div>
+
+        <div id="selection-summary" class="mt-4 flex flex-wrap gap-2" aria-label="Filtros activos"></div>
+
+        <div class="mt-6 flex flex-wrap gap-2" aria-label="Cambiar selección">
+          <button type="button" data-change-step="gender" class="min-h-11 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2">Cambiar género</button>
+          <button type="button" data-change-step="sizes" class="min-h-11 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2">Cambiar tallas</button>
+          <button type="button" data-change-step="garment" class="min-h-11 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2">Cambiar tipo</button>
+          <button type="button" data-guided-reset class="min-h-11 rounded-xl px-3 py-2 text-xs font-bold text-slate-500 underline decoration-slate-300 underline-offset-4 hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2">Reiniciar selección</button>
+        </div>
+
+        <div id="product-grid" class="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2" hidden>
+          {
+            uniformes.map((product: Producto) => {
+              const style = genderStyles[product.Genero] || genderStyles.Unisex;
+              return (
+                <article
+                  class={`product-card overflow-hidden rounded-2xl border ${style.border} bg-white shadow-sm`}
+                  data-product-id={product.id}
+                  data-gender={product.Genero}
+                  data-category={product.Tipo}
+                  hidden
                 >
-                  <span class="material-symbols-outlined !text-xl">
-                    chevron_left
-                  </span>
-                </button>
-
-                <div class="instagram-slider no-scrollbar">
-                  {product.Foto &&
-                    product.Foto.map((foto, index) => (
-                      <div class="slider-item" data-index={index}>
-                        <img
-                          src={foto.url}
-                          alt={`${product.Tipo} - ${index + 1}`}
-                          class="w-full h-full object-cover pointer-events-none"
-                          loading="lazy"
-                        />
+                  <div class="flex items-center justify-between gap-3 p-4">
+                    <div class="flex items-center gap-3">
+                      <div class={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${style.bg} ${style.border}`}>
+                        <span class={`material-symbols-outlined ${style.text}`} aria-hidden="true">{style.icon}</span>
                       </div>
-                    ))}
-                </div>
-
-                <button
-                  class="next-btn absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm text-slate-800 hidden md:group-hover:flex items-center justify-center shadow-md hover:bg-white transition-all active:scale-90"
-                  data-direction="1"
-                >
-                  <span class="material-symbols-outlined !text-xl">
-                    chevron_right
-                  </span>
-                </button>
-
-                {product.Foto && product.Foto.length > 1 && (
-                  <div class="absolute bottom-0 left-0 w-full h-12 pointer-events-none flex items-end justify-center pb-3 bg-gradient-to-t from-black/40 to-transparent">
-                    <div class="flex gap-1.5 dot-container">
-                      {product.Foto.map((_, i) => (
-                        <div
-                          data-index={i}
-                          class={`w-1.5 h-1.5 rounded-full bg-white shadow-sm transition-all duration-300 ${i === 0 ? "opacity-100 scale-110" : "opacity-40"}`}
-                        />
-                      ))}
+                      <span class={`text-xs font-bold uppercase tracking-[0.1em] ${style.text}`}>{product.Genero}</span>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-sm font-bold leading-tight">{product.Fabricantes}</p>
+                      <p class="text-[10px] font-medium uppercase tracking-wide text-slate-500">{product.Marca}</p>
                     </div>
                   </div>
-                )}
-              </div>
 
-              <div class="px-4 pt-4">
-                <div class="flex items-center justify-between mb-4">
-                  <div class="flex items-center gap-4">
-                    <LikeButton product={product} />
-                    <BuyButton product={product} />
-                    <ShareButton product={product} />
-                    <a
-                      href={`/productos/${product.documentId}`}
-                      rel="noopener noreferrer"
+                  <div class="group relative overflow-hidden">
+                    <button
+                      type="button"
+                      class="prev-btn absolute left-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-slate-800 shadow-md backdrop-blur-sm transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] md:group-hover:flex"
+                      data-direction="-1"
+                      aria-label="Ver imagen anterior"
                     >
-                      <span class="material-symbols-outlined text-slate-500 ">
-                        open_in_new
-                      </span>
-                    </a>
+                      <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+                    </button>
+
+                    <div class="instagram-slider no-scrollbar">
+                      {product.Foto.length > 0 ? (
+                        product.Foto.map((foto, index) => (
+                          <div class="slider-item" data-index={index}>
+                            <img
+                              src={foto.url}
+                              alt={foto.alternativeText || `${product.Tipo} ${product.Color}`}
+                              class="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        ))
+                      ) : (
+                        <div class="slider-item flex items-center justify-center bg-slate-100 text-sm text-slate-500">Sin imagen disponible</div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      class="next-btn absolute right-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-slate-800 shadow-md backdrop-blur-sm transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] md:group-hover:flex"
+                      data-direction="1"
+                      aria-label="Ver imagen siguiente"
+                    >
+                      <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                    </button>
+
+                    {product.Foto.length > 1 && (
+                      <div class="pointer-events-none absolute bottom-0 left-0 flex h-12 w-full items-end justify-center bg-gradient-to-t from-black/40 to-transparent pb-3">
+                        <div class="dot-container flex gap-1.5">
+                          {product.Foto.map((_, index) => (
+                            <span data-index={index} class={`h-1.5 w-1.5 rounded-full bg-white shadow-sm ${index === 0 ? "opacity-100" : "opacity-40"}`} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <p class="text-lg font-bold font-['Manrope'] text-[#005d90]">
-                    {`$${product.Precio}`}
-                  </p>
-                </div>
-                <div class="space-y-1">
-                  <p class="text-sm leading-relaxed text-[#191c1e]">
-                    <span class="font-bold">Tipo:</span> {product.Tipo}
-                  </p>
-                  <p class="text-sm leading-relaxed text-[#191c1e]">
-                    <span class="font-bold">Fabricante:</span>{" "}
-                    {product.Fabricantes}
-                  </p>{" "}
-                  <p class="text-sm leading-relaxed text-[#191c1e]">
-                    <span class="font-bold">Marca:</span> {product.Marca}
-                  </p>{" "}
-                  <p class="text-sm leading-relaxed text-[#191c1e]">
-                    <span class="font-bold">Color:</span> {product.Color}
-                  </p>
-                </div>
-              </div>
-              <SizeStock tallaStock={product.Talla} class="px-6" />
-            </article>
-          );
-        })
-      }
-    </div>
-    <div id="no-results" class="hidden py-20 px-6 text-center">
-      <span class="material-symbols-outlined text-6xl text-slate-200 mb-4">
-        inventory_2
-      </span>
-      <h3 class="text-lg font-bold text-slate-800 font-['Manrope']">
-        No encontramos lo que buscas
-      </h3>
-      <p class="text-slate-500 text-sm mt-2">
-        Intenta cambiando los filtros de categoría o género.
-      </p>
-      <button
-        id="reset-filters"
-        class="mt-6 px-6 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-colors"
-      >
-        Limpiar Filtros
-      </button>
+
+                  <div class="px-4 pb-4 pt-4">
+                    <div class="mb-4 flex items-center justify-between gap-3">
+                      <div class="flex items-center gap-4">
+                        <LikeButton product={product} />
+                        <BuyButton product={product} />
+                        <ShareButton product={product} />
+                        <a
+                          href={`/productos/${product.documentId}`}
+                          aria-label={`Ver detalles de ${product.Tipo}`}
+                          class="rounded-lg p-1 text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
+                        >
+                          <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
+                        </a>
+                      </div>
+                      <p class="text-lg font-bold text-[#005d90]">${product.Precio}</p>
+                    </div>
+                    <div class="space-y-1 text-sm leading-6 text-slate-800">
+                      <p><span class="font-bold">Tipo:</span> {product.Tipo}</p>
+                      <p><span class="font-bold">Fabricante:</span> {product.Fabricantes}</p>
+                      <p><span class="font-bold">Marca:</span> {product.Marca}</p>
+                      <p><span class="font-bold">Color:</span> {product.Color}</p>
+                    </div>
+                  </div>
+                  <SizeStock tallaStock={product.Talla} class="px-4" />
+                </article>
+              );
+            })
+          }
+        </div>
+
+        <div id="no-results" class="py-12 text-center" hidden>
+          <span class="material-symbols-outlined text-5xl text-slate-300" aria-hidden="true">search_off</span>
+          <h3 class="mt-3 text-lg font-bold text-slate-900">No encontramos una coincidencia</h3>
+          <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+            Prueba quitando la talla, cambiando el tipo de prenda o consultando todo el catálogo.
+          </p>
+          <div class="mt-5 flex flex-wrap justify-center gap-3">
+            <button type="button" data-empty-action="clear-sizes" class="min-h-11 rounded-xl bg-[#0077B6] px-4 py-3 text-sm font-bold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2">Quitar tallas</button>
+            <button type="button" data-empty-action="change-garment" class="min-h-11 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2">Cambiar tipo</button>
+            <button type="button" data-view-all class="min-h-11 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2">Ver todo</button>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 
-  <nav
-    id="gender-filter-nav"
-    class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pt-2 pb-2 bg-white z-50 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)] border-t border-slate-100"
-  >
-    <button
-      class="filter-btn flex flex-col items-center justify-center text-slate-400 px-5 py-2 transition-all"
-      data-filter="Dama"
-    >
-      <span class="material-symbols-outlined">female</span>
-      <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
-        >Dama</span
-      >
-    </button>
-    <button
-      class="filter-btn flex flex-col items-center justify-center text-slate-400 px-5 py-2 transition-all"
-      data-filter="Caballero"
-    >
-      <span class="material-symbols-outlined">male</span>
-      <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
-        >Caballero</span
-      >
-    </button>
-    <button
-      class="filter-btn flex flex-col items-center justify-center text-slate-400 px-5 py-2 transition-all"
-      data-filter="Unisex"
-    >
-      <span class="material-symbols-outlined">group</span>
-      <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
-        >Unisex</span
-      >
-    </button>
-    <button
-      class="filter-btn flex flex-col items-center justify-center text-[#0077B6] px-5 py-2 transition-all"
-      data-filter="all"
-    >
-      <span class="material-symbols-outlined">grid_view</span>
-      <span class="text-[10px] uppercase tracking-widest font-semibold mt-1"
-        >Todos</span
-      >
-    </button>
-  </nav>
-
-  <div class="fixed right-6 bottom-28 z-40">
+  <div class="fixed bottom-5 right-5 z-40">
     <a
       href="https://wa.me/584241468579?text=Hola!%20Me%20interesa%20uno%20de%20sus%20uniformes"
       target="_blank"
       rel="noopener noreferrer"
-      class="w-14 h-14 rounded-full bg-gradient-to-br from-[#25D366] to-[#1DA851] text-white shadow-xl flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+      aria-label="Contactar por WhatsApp"
+      class="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#25D366] to-[#1DA851] text-white shadow-xl transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 active:scale-90"
     >
-      <span class="material-symbols-outlined text-3xl">chat</span>
+      <span class="material-symbols-outlined text-3xl" aria-hidden="true">chat</span>
     </a>
   </div>
+
+  {!catalogError && uniformes.length > 0 && <script id="catalog-filter-data" type="application/json" is:inline set:html={filterData}></script>}
 </Layout>
 
 <style>
-  /* Limpiar estilos nativos del select en iOS para que se vea igual en todos lados */
-  select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
+  .guided-choice[aria-pressed="true"],
+  [data-size-option][aria-pressed="true"],
+  [data-any-size][aria-pressed="true"] {
+    border-color: #0077b6;
+    background: #eff8fc;
+    color: #005d90;
   }
 
-  /* Ocultar barra de scroll para Chrome, Safari y Opera */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
 
-  /* Ocultar barra de scroll para IE, Edge y Firefox */
-  .no-scrollbar {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
-  }
-
-  .instagram-slider {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    aspect-ratio: 4 / 5;
-    width: 100%;
-  }
-
-  .slider-item {
-    flex: 0 0 100%; /* Esto obliga a cada item a medir el 100% exacto */
-    width: 100%;
-    height: 100%;
-    scroll-snap-align: center;
-  }
-
-  /* Ocultar barra de scroll */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  .instagram-slider {
+    display: flex;
+    aspect-ratio: 4 / 5;
+    width: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    background: #f1f5f9;
+  }
+
+  .slider-item {
+    height: 100%;
+    width: 100%;
+    flex: 0 0 100%;
+    scroll-snap-align: center;
+  }
+
+  [data-guided-step][hidden],
+  [data-testid="guided-results"][hidden],
+  #product-grid[hidden],
+  #no-results[hidden] {
+    display: none;
+  }
 </style>
 
 <script>
-  const categorySelect = document.getElementById("category-select");
-  const genderButtons = document.querySelectorAll(".filter-btn");
-  const products = document.querySelectorAll(".product-card");
-  const noResults = document.getElementById("no-results"); // Nuevo
-  const resetBtn = document.getElementById("reset-filters"); // Nuevo
+  import {
+    filterCatalogRecords,
+    getAvailableSizeLabels,
+    type CatalogFilterRecord,
+    type GarmentGroup,
+    type GuidedCatalogSelection,
+    type GuidedGender,
+    type GuidedStep,
+  } from "../utils/catalog-filters";
 
-  let currentGender = "all";
-  let currentCategory = "";
+  const dataElement = document.getElementById("catalog-filter-data");
+  const records = dataElement
+    ? (JSON.parse(dataElement.textContent || "[]") as CatalogFilterRecord[])
+    : [];
+  const flow = document.getElementById("guided-flow");
+  const results = document.getElementById("guided-results");
+  const progress = document.getElementById("guided-progress");
+  const question = document.getElementById("guided-question");
+  const help = document.getElementById("guided-help");
+  const status = document.getElementById("guided-status");
+  const sizeOptions = document.getElementById("size-options");
+  const sizeEmpty = document.getElementById("size-empty");
+  const continueSizes = document.querySelector<HTMLButtonElement>("[data-size-continue]");
+  const anySizeButton = document.querySelector<HTMLButtonElement>("[data-any-size]");
+  const resultGrid = document.getElementById("product-grid");
+  const resultCount = document.getElementById("results-count");
+  const selectionSummary = document.getElementById("selection-summary");
+  const noResults = document.getElementById("no-results");
+  const cards = Array.from(document.querySelectorAll<HTMLElement>(".product-card"));
+  const stepPanels = Array.from(document.querySelectorAll<HTMLElement>("[data-guided-step]"));
 
-  function filterProducts() {
-    let visibleCount = 0;
-    const skuCounter = document.getElementById("sku-count"); // Referencia al contador
+  const initialSelection: GuidedCatalogSelection = {
+    step: "gender",
+    view: "guided",
+    gender: null,
+    sizeLabels: [],
+    garmentGroup: null,
+  };
 
-    products.forEach((product) => {
-      const productGender = product.getAttribute("data-gender");
-      const productCategory = product.getAttribute("data-category");
+  let selection: GuidedCatalogSelection = { ...initialSelection };
 
-      const matchesGender =
-        currentGender === "all" || productGender === currentGender;
-      const matchesCategory =
-        currentCategory === "" || productCategory === currentCategory;
+  const labels: Record<GuidedGender, string> = {
+    Dama: "Damas",
+    Caballero: "Caballeros",
+  };
 
-      const productElement = product as HTMLElement;
+  const groupLabels: Record<GarmentGroup, string> = {
+    uniformes: "Uniformes",
+    batas: "Batas",
+  };
 
-      if (matchesGender && matchesCategory) {
-        productElement.style.display = "block";
-        visibleCount++;
-      } else {
-        productElement.style.display = "none";
-      }
-    });
-
-    // ACTUALIZAR EL TOTALIZADOR
-    if (skuCounter) {
-      skuCounter.textContent = `${visibleCount} ${visibleCount === 1 ? "Producto" : "Productos"}`;
-
-      // Opcional: Cambiar color si no hay resultados
-      if (visibleCount === 0) {
-        skuCounter.classList.replace("bg-slate-100", "bg-red-50");
-        skuCounter.classList.replace("text-slate-500", "text-red-600");
-      } else {
-        skuCounter.classList.replace("bg-red-50", "bg-slate-100");
-        skuCounter.classList.replace("text-red-600", "text-slate-500");
-      }
-    }
-
-    // Manejo del mensaje de "No hay resultados"
-    if (visibleCount === 0) {
-      noResults?.classList.remove("hidden");
-    } else {
-      noResults?.classList.add("hidden");
-    }
+  function copySelection(next: GuidedCatalogSelection): GuidedCatalogSelection {
+    return { ...next, sizeLabels: [...next.sizeLabels] };
   }
 
-  // Lógica para el botón de "Limpiar Filtros"
-  resetBtn?.addEventListener("click", () => {
-    // Resetear variables
-    currentGender = "all";
-    currentCategory = "";
-
-    // Resetear el Select visualmente
-    if (categorySelect) (categorySelect as HTMLSelectElement).value = "";
-
-    // Simular click en el botón "Todos" del nav para resetear estilos
-    const allBtn = document.querySelector(
-      '[data-filter="all"]',
-    ) as HTMLButtonElement;
-    allBtn?.click();
-
-    filterProducts();
-  });
-
-  categorySelect?.addEventListener("change", (e) => {
-    const target = e.target as HTMLSelectElement | null;
-    if (target) {
-      currentCategory = target.value;
-      filterProducts();
+  function setHistory(next: GuidedCatalogSelection, replace = false) {
+    const state = { guidedCatalog: copySelection(next) };
+    const hash = next.view === "all" ? "#catalogo" : `#${next.step}`;
+    if (replace) {
+      window.history.replaceState(state, "", hash);
+    } else {
+      window.history.pushState(state, "", hash);
     }
-  });
+    selection = copySelection(next);
+    render();
+  }
 
-  // Eventos para los Botones de Género (Inferior)
-  genderButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      currentGender = btn.getAttribute("data-filter") ?? "all";
+  function setStatus(message: string) {
+    if (status) status.textContent = message;
+  }
 
-      // Actualizar visualmente los botones (Active State)
-      genderButtons.forEach((b) => {
-        b.classList.remove(
-          "bg-sky-50",
-          "text-pink-700",
-          "text-[#0077B6]",
-          "rounded-2xl",
-        );
-        b.classList.add("text-slate-400");
-        const icon = b.querySelector(".material-symbols-outlined");
-        if (icon)
-          (icon as HTMLElement).style.fontVariationSettings = "'FILL' 0";
+  function renderSummary() {
+    if (!selectionSummary) return;
+    selectionSummary.innerHTML = "";
+    if (selection.view === "all") {
+      const chip = document.createElement("span");
+      chip.className = "rounded-full bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700";
+      chip.textContent = "Todo el catálogo";
+      selectionSummary.append(chip);
+      return;
+    }
+
+    const values = [
+      selection.gender ? labels[selection.gender] : "Sin género",
+      selection.sizeLabels.length ? selection.sizeLabels.join(", ") : "Cualquier talla",
+      selection.garmentGroup ? groupLabels[selection.garmentGroup] : "Sin tipo",
+    ];
+    values.forEach((value) => {
+      const chip = document.createElement("span");
+      chip.className = "rounded-full bg-sky-50 px-3 py-2 text-xs font-bold text-[#005d90]";
+      chip.textContent = value;
+      selectionSummary.append(chip);
+    });
+  }
+
+  function updateSizeOptions() {
+    if (!sizeOptions || !selection.gender) return;
+    const availableSizes = getAvailableSizeLabels(records, selection.gender);
+    sizeOptions.innerHTML = "";
+
+    availableSizes.forEach((size) => {
+      const button = document.createElement("button");
+      const selected = selection.sizeLabels.includes(size);
+      button.type = "button";
+      button.dataset.sizeOption = size;
+      button.className = "min-h-14 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 text-center text-base font-extrabold text-slate-700 transition hover:border-[#0077B6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2";
+      button.setAttribute("aria-pressed", String(selected));
+      button.textContent = size;
+      button.addEventListener("click", () => {
+        selection.sizeLabels = selection.sizeLabels.includes(size)
+          ? selection.sizeLabels.filter((label) => label !== size)
+          : [...selection.sizeLabels, size];
+        setHistory({ ...selection, step: "sizes", view: "guided" });
       });
+      sizeOptions.append(button);
+    });
 
-      // Estilo activo según el género
-      btn.classList.add("bg-sky-50", "rounded-2xl");
-      btn.classList.remove("text-slate-400");
-      if (currentGender === "Dama") btn.classList.add("text-pink-700");
-      else if (currentGender === "Caballero")
-        btn.classList.add("text-[#0077B6]");
-      else if (currentGender === "Unisex") btn.classList.add("text-[#9D6CB2]");
-      else btn.classList.add("text-[#747779]");
+    if (sizeEmpty) sizeEmpty.hidden = availableSizes.length > 0;
+    if (continueSizes) continueSizes.disabled = availableSizes.length === 0;
+    if (anySizeButton) anySizeButton.setAttribute("aria-pressed", String(selection.sizeLabels.length === 0));
+  }
 
-      const activeIcon = btn.querySelector(".material-symbols-outlined");
-      if (activeIcon)
-        (activeIcon as HTMLElement).style.fontVariationSettings = "'FILL' 1";
+  function renderResults() {
+    const matchingRecords = selection.view === "all"
+      ? records
+      : filterCatalogRecords(records, selection);
+    const visibleIds = new Set(matchingRecords.map((record) => String(record.productId)));
 
-      filterProducts();
+    cards.forEach((card) => {
+      card.hidden = !visibleIds.has(card.dataset.productId || "");
+    });
+
+    if (resultGrid) resultGrid.hidden = matchingRecords.length === 0;
+    if (noResults) noResults.hidden = matchingRecords.length > 0;
+    if (resultCount) {
+      resultCount.textContent = `${matchingRecords.length} ${matchingRecords.length === 1 ? "producto disponible" : "productos disponibles"}`;
+    }
+    renderSummary();
+  }
+
+  function render() {
+    if (!flow || !results) return;
+
+    const isResults = selection.step === "results" || selection.view === "all";
+    const questions: Record<GuidedStep, string> = {
+      gender: "¿Qué deseas ver?",
+      sizes: "¿Qué tallas deseas ver?",
+      garment: "¿Uniformes o batas?",
+      results: selection.view === "all" ? "Todo el catálogo" : "Prendas disponibles",
+    };
+    const progressText = selection.view === "all"
+      ? "Catálogo completo"
+      : selection.step === "results"
+        ? "Resultados"
+        : `Paso ${["gender", "sizes", "garment"].indexOf(selection.step) + 1} de 3`;
+
+    if (question) question.textContent = questions[selection.step];
+    if (progress) progress.textContent = progressText;
+    if (help) help.textContent = isResults
+      ? "Puedes cambiar cualquier respuesta o explorar todo el catálogo."
+      : "Responde tres preguntas sencillas y te mostraremos prendas disponibles para ti.";
+
+    stepPanels.forEach((panel) => {
+      panel.hidden = isResults || panel.dataset.guidedStep !== selection.step;
+    });
+    results.hidden = !isResults;
+
+    if (selection.step === "sizes") updateSizeOptions();
+    if (isResults) renderResults();
+  }
+
+  document.querySelectorAll<HTMLButtonElement>("[data-gender-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const gender = button.dataset.genderChoice as GuidedGender;
+      setHistory({
+        step: "sizes",
+        view: "guided",
+        gender,
+        sizeLabels: [],
+        garmentGroup: null,
+      });
+      setStatus(`Elegiste ${labels[gender]}. Ahora selecciona tus tallas.`);
     });
   });
 
-  // Lógica de las Flechas
-  const setupArrows = () => {
-    const prevButtons = document.querySelectorAll(".prev-btn");
-    const nextButtons = document.querySelectorAll(".next-btn");
+  document.querySelectorAll<HTMLButtonElement>("[data-garment-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const garmentGroup = button.dataset.garmentChoice as GarmentGroup;
+      setHistory({ ...selection, step: "results", view: "guided", garmentGroup });
+      setStatus(`Mostrando ${groupLabels[garmentGroup].toLocaleLowerCase()}.`);
+      results?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
 
-    const handleScroll = (btn: Element, direction: number) => {
-      const container = btn.parentElement?.querySelector(".instagram-slider");
-      if (container) {
-        const scrollAmount = container.clientWidth; // Ancho de una imagen
-        container.scrollBy({
-          left: scrollAmount * direction,
-          behavior: "smooth",
-        });
+  anySizeButton?.addEventListener("click", () => {
+    setHistory({ ...selection, step: "sizes", view: "guided", sizeLabels: [] });
+    setStatus("Se mostrarán productos de cualquier talla.");
+  });
+
+  continueSizes?.addEventListener("click", () => {
+    setHistory({ ...selection, step: "garment", view: "guided" });
+    setStatus("Ahora elige entre uniformes y batas.");
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-guided-back]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const step = button.dataset.guidedBack as GuidedStep;
+      setHistory({ ...selection, step, view: "guided" });
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-change-step]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const step = button.dataset.changeStep as GuidedStep;
+      setHistory({ ...selection, step, view: "guided" });
+      document.getElementById("guided-flow")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-guided-reset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setHistory(initialSelection);
+      setStatus("Selección reiniciada.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-view-all]").forEach((button) => {
+    button.addEventListener("click", () => {
+      setHistory({ ...initialSelection, step: "results", view: "all" });
+      setStatus("Mostrando todo el catálogo disponible.");
+      results?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("[data-empty-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.emptyAction === "clear-sizes") {
+        setHistory({ ...selection, step: "results", view: "guided", sizeLabels: [] });
+      } else {
+        setHistory({ ...selection, step: "garment", view: "guided" });
       }
-    };
+    });
+  });
 
-    prevButtons.forEach((btn) =>
-      btn.addEventListener("click", () => handleScroll(btn, -1)),
-    );
-    nextButtons.forEach((btn) =>
-      btn.addEventListener("click", () => handleScroll(btn, 1)),
-    );
-  };
+  document.querySelector<HTMLButtonElement>("[data-retry-catalog]")?.addEventListener("click", () => {
+    window.location.reload();
+  });
 
-  // Lógica de los Puntos (IntersectionObserver) que ya tenías
-  const observerOptions = { threshold: 0.6 };
+  window.addEventListener("popstate", (event) => {
+    const next = event.state?.guidedCatalog as GuidedCatalogSelection | undefined;
+    selection = next ? copySelection(next) : { ...initialSelection };
+    render();
+  });
+
+  if (flow && records.length) {
+    window.history.replaceState({ guidedCatalog: copySelection(initialSelection) }, "", "#gender");
+    render();
+  }
+
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        const slide = entry.target as HTMLElement;
-        const productCard = slide.closest("article");
-        const index = slide.getAttribute("data-index");
-
-        if (productCard && index !== null) {
-          const dots = productCard.querySelectorAll(".dot-container div");
-          dots.forEach((dot, i) => {
-            if (i === parseInt(index)) {
-              dot.classList.add("opacity-100", "scale-110");
-              dot.classList.remove("opacity-40");
-            } else {
-              dot.classList.remove("opacity-100", "scale-110");
-              dot.classList.add("opacity-40");
-            }
-          });
-        }
-      }
+      if (!entry.isIntersecting) return;
+      const slide = entry.target as HTMLElement;
+      const card = slide.closest("article");
+      const index = slide.dataset.index;
+      if (!card || index === undefined) return;
+      card.querySelectorAll<HTMLElement>(".dot-container [data-index]").forEach((dot) => {
+        const active = dot.dataset.index === index;
+        dot.classList.toggle("opacity-100", active);
+        dot.classList.toggle("opacity-40", !active);
+      });
     });
-  }, observerOptions);
+  }, { threshold: 0.6 });
 
-  const initCarousel = () => {
-    document
-      .querySelectorAll(".slider-item")
-      .forEach((item) => observer.observe(item));
-    setupArrows();
-  };
+  document.querySelectorAll<HTMLElement>(".slider-item").forEach((item) => observer.observe(item));
 
-  // Inicializar
-  initCarousel();
+  document.querySelectorAll<HTMLButtonElement>(".prev-btn, .next-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      const slider = button.parentElement?.querySelector<HTMLElement>(".instagram-slider");
+      if (!slider) return;
+      const direction = Number(button.dataset.direction || "1");
+      slider.scrollBy({ left: slider.clientWidth * direction, behavior: "smooth" });
+    });
+  });
 </script>

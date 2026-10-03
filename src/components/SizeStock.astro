@@ -6,6 +6,7 @@ interface Props {
   class?: string;
 }
 const { tallaStock, class: customClass } = Astro.props;
+const availableSizes = tallaStock.filter((size) => size.cantidad_actual > 0);
 ---
 
 <div class={`py-4 ${customClass || ""}`}>
@@ -15,18 +16,20 @@ const { tallaStock, class: customClass } = Astro.props;
     Tallas disponibles
   </p>
 
-  <div class="flex gap-2 overflow-x-auto no-scrollbar py-1">
+  <div class="flex gap-2 overflow-x-auto no-scrollbar py-1" role="list" aria-label="Tallas con existencias">
     {
-      tallaStock.map((size) => (
-        <button class="flex-shrink-0 px-3 py-2 rounded-lg  flex flex-col items-center min-w-[64px] transition-all border-2 border-[#005d90] bg-[#005d90]/5 text-[#005d90]">
+      availableSizes.length > 0 ? availableSizes.map((size) => (
+        <span role="listitem" class="flex min-h-11 min-w-[64px] flex-shrink-0 flex-col items-center justify-center rounded-lg border-2 border-[#005d90] bg-[#005d90]/5 px-3 py-2 text-[#005d90]">
           <span class="text-xs font-bold font-['Manrope']">{size.Talla}</span>
           <span class="text-[10px] font-medium italic text-blue-500">
             {size.cantidad_actual < 3
               ? `Solo ${size.cantidad_actual}`
               : "En stock"}
           </span>
-        </button>
-      ))
+        </span>
+      )) : (
+        <span role="listitem" class="text-sm text-slate-500">Sin tallas disponibles</span>
+      )
     }
   </div>
 </div>

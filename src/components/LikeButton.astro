@@ -5,8 +5,11 @@ const { product } = Astro.props;
 
 <article class="border border-slate-100 overflow-hidden">
   <button
+    type="button"
     data-product-id={product.id}
-    class="favorite-btn active:scale-90 transition-all duration-300 rounded-full hover:bg-red-50"
+    aria-label={`Guardar ${product.Tipo} en favoritos`}
+    aria-pressed="false"
+    class="favorite-btn inline-flex min-h-11 min-w-11 items-center justify-center rounded-full p-1 active:scale-90 transition-all duration-300 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
   >
     <span
       class="material-symbols-outlined select-none transition-colors duration-300"
@@ -29,7 +32,9 @@ const { product } = Astro.props;
       ) as HTMLElement;
 
       if (icon && id) {
-        if (favorites.includes(id)) {
+        const isFavorite = favorites.includes(id);
+        btn.setAttribute("aria-pressed", String(isFavorite));
+        if (isFavorite) {
           // Estado Activo (Rojo y Relleno)
           icon.classList.add("text-red-500");
           icon.classList.remove("text-slate-500");
