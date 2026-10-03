@@ -16,7 +16,7 @@ test.describe("guided catalog mobile experience", () => {
     await genderButton.click();
     await page.getByRole("button", { name: "Cualquier talla", exact: true }).click();
     await page.getByRole("button", { name: "Continuar", exact: true }).click();
-    await page.getByRole("button", { name: "Uniformes", exact: true }).click();
+    await page.locator("[data-type-choice]").first().click();
     await expect(page.getByTestId("guided-results")).toBeVisible();
 
     const dimensions = await page.locator("body").evaluate((body) => ({

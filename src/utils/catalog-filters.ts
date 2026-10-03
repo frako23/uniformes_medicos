@@ -10,7 +10,7 @@ export interface GuidedCatalogSelection {
   view: GuidedView;
   gender: GuidedGender | null;
   sizeLabels: string[];
-  garmentGroup: GarmentGroup | null;
+  typeLabel: string | null;
 }
 
 export interface CatalogFilterRecord {
@@ -87,13 +87,32 @@ export function getAvailableSizeLabels(
   return sortSizeLabels(uniqueLabels(labels));
 }
 
+export function getAvailableTypeLabels(
+  records: CatalogFilterRecord[],
+  selectedGender: GuidedGender | null = null,
+  selectedSizeLabels: string[] = [],
+) {
+  const labels = records
+    .filter((record) => {
+      if (!record.typeLabel.trim() || !record.positiveSizeLabels.length) return false;
+      if (!isCompatibleGender(record.gender, selectedGender)) return false;
+      if (!selectedSizeLabels.length) return true;
+      return selectedSizeLabels.some((label) => record.positiveSizeLabels.includes(label));
+    })
+    .map((record) => record.typeLabel.trim());
+
+  return uniqueLabels(labels).sort((left, right) =>
+    left.localeCompare(right, undefined, { sensitivity: "base" }),
+  );
+}
+
 export function matchesCatalogRecord(
   record: CatalogFilterRecord,
-  selection: Pick<GuidedCatalogSelection, "gender" | "sizeLabels" | "garmentGroup">,
+  selection: Pick<GuidedCatalogSelection, "gender" | "sizeLabels" | "typeLabel">,
 ) {
   if (!record.positiveSizeLabels.length) return false;
   if (!isCompatibleGender(record.gender, selection.gender)) return false;
-  if (selection.garmentGroup && getGarmentGroup(record.typeLabel) !== selection.garmentGroup) {
+  if (selection.typeLabel && record.typeLabel.trim() !== selection.typeLabel.trim()) {
     return false;
   }
   if (!selection.sizeLabels.length) return true;
@@ -103,7 +122,7 @@ export function matchesCatalogRecord(
 
 export function filterCatalogRecords(
   records: CatalogFilterRecord[],
-  selection: Pick<GuidedCatalogSelection, "gender" | "sizeLabels" | "garmentGroup">,
+  selection: Pick<GuidedCatalogSelection, "gender" | "sizeLabels" | "typeLabel">,
 ) {
   return records.filter((record) => matchesCatalogRecord(record, selection));
 }

@@ -228,27 +228,11 @@ const genderStyles = {
 
         <div class="guided-step mt-7" data-guided-step="garment" data-testid="guided-step-garment" hidden>
           <fieldset>
-            <legend class="sr-only">Elige entre uniformes y batas</legend>
-            <div class="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                data-garment-choice="uniformes"
-                aria-pressed="false"
-                class="min-h-16 rounded-2xl border-2 border-[#0077B6]/20 bg-sky-50 px-5 py-4 text-left text-base font-extrabold text-[#005d90] transition hover:border-[#0077B6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2"
-              >
-                <span class="material-symbols-outlined mr-2 align-middle" aria-hidden="true">medical_services</span>
-                Uniformes
-              </button>
-              <button
-                type="button"
-                data-garment-choice="batas"
-                aria-pressed="false"
-                class="min-h-16 rounded-2xl border-2 border-[#9D6CB2]/20 bg-purple-50 px-5 py-4 text-left text-base font-extrabold text-[#7a4c8f] transition hover:border-[#9D6CB2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9D6CB2] focus-visible:ring-offset-2"
-              >
-                <span class="material-symbols-outlined mr-2 align-middle" aria-hidden="true">lab_research</span>
-                Batas
-              </button>
-            </div>
+            <legend class="sr-only">Elige un tipo de prenda</legend>
+            <div id="type-options" class="grid gap-3 sm:grid-cols-2" role="group" aria-label="Tipos disponibles"></div>
+            <p id="type-empty" class="rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-800" hidden>
+              No encontramos tipos disponibles para esta selección. Puedes volver y cambiar las tallas o el género.
+            </p>
           </fieldset>
           <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
             <button
@@ -508,9 +492,9 @@ const genderStyles = {
   import {
     filterCatalogRecords,
     getAvailableSizeLabels,
+    getAvailableTypeLabels,
     sortSizeLabels,
     type CatalogFilterRecord,
-    type GarmentGroup,
     type GuidedCatalogSelection,
     type GuidedGender,
     type GuidedStep,
@@ -528,6 +512,8 @@ const genderStyles = {
   const status = document.getElementById("guided-status");
   const sizeOptions = document.getElementById("size-options");
   const sizeEmpty = document.getElementById("size-empty");
+  const typeOptions = document.getElementById("type-options");
+  const typeEmpty = document.getElementById("type-empty");
   const continueSizes = document.querySelector<HTMLButtonElement>("[data-size-continue]");
   const anySizeButton = document.querySelector<HTMLButtonElement>("[data-any-size]");
   const resultGrid = document.getElementById("product-grid");
@@ -544,7 +530,7 @@ const genderStyles = {
     view: "guided",
     gender: null,
     sizeLabels: [],
-    garmentGroup: null,
+    typeLabel: null,
   };
 
   let selection: GuidedCatalogSelection = { ...initialSelection };
@@ -552,11 +538,6 @@ const genderStyles = {
   const labels: Record<GuidedGender, string> = {
     Dama: "Damas",
     Caballero: "Caballeros",
-  };
-
-  const groupLabels: Record<GarmentGroup, string> = {
-    uniformes: "Uniformes",
-    batas: "Batas",
   };
 
   function copySelection(next: GuidedCatalogSelection): GuidedCatalogSelection {
@@ -600,7 +581,7 @@ const genderStyles = {
     } else if (selection.gender) {
       values.push({ label: "Tallas", value: "Cualquiera", icon: "all_inclusive" });
     }
-    if (selection.garmentGroup) values.push({ label: "Tipo", value: groupLabels[selection.garmentGroup], icon: "medical_services" });
+    if (selection.typeLabel) values.push({ label: "Tipo", value: selection.typeLabel, icon: "medical_services" });
 
     values.forEach(({ label, value, icon }) => {
       const chip = document.createElement("span");
@@ -616,7 +597,7 @@ const genderStyles = {
     if (selectionTrailHint) {
       selectionTrailHint.textContent = !selection.gender
         ? "Empieza eligiendo una opción para personalizar el catálogo."
-        : !selection.garmentGroup
+        : !selection.typeLabel
           ? "Selección guardada. Elige una talla y luego el tipo de prenda."
           : "Selección completa. Mostrando prendas disponibles.";
     }
@@ -627,8 +608,8 @@ const genderStyles = {
       button.setAttribute("aria-pressed", String(button.dataset.genderChoice === selection.gender));
     });
 
-    document.querySelectorAll<HTMLButtonElement>("[data-garment-choice]").forEach((button) => {
-      button.setAttribute("aria-pressed", String(button.dataset.garmentChoice === selection.garmentGroup));
+    document.querySelectorAll<HTMLButtonElement>("[data-type-choice]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.typeChoice === selection.typeLabel));
     });
 
     if (anySizeButton) {
@@ -650,7 +631,7 @@ const genderStyles = {
     const values = [
       selection.gender ? labels[selection.gender] : "Sin género",
       selection.sizeLabels.length ? selection.sizeLabels.join(", ") : "Cualquier talla",
-      selection.garmentGroup ? groupLabels[selection.garmentGroup] : "Sin tipo",
+      selection.typeLabel || "Sin tipo",
     ];
     values.forEach((value) => {
       const chip = document.createElement("span");
@@ -679,7 +660,7 @@ const genderStyles = {
         selection.sizeLabels = isSelected
           ? selection.sizeLabels.filter((label) => label !== size)
           : sortSizeLabels([...selection.sizeLabels, size]);
-        setHistory({ ...selection, step: "sizes", view: "guided" });
+        setHistory({ ...selection, step: "sizes", view: "guided", typeLabel: null });
         setStatus(isSelected ? `Talla ${size} quitada.` : `Talla ${size} seleccionada.`);
       });
       sizeOptions.append(button);
@@ -688,6 +669,31 @@ const genderStyles = {
     if (sizeEmpty) sizeEmpty.hidden = availableSizes.length > 0;
     if (continueSizes) continueSizes.disabled = availableSizes.length === 0;
     if (anySizeButton) anySizeButton.setAttribute("aria-pressed", String(selection.sizeLabels.length === 0));
+  }
+
+  function updateTypeOptions() {
+    if (!typeOptions || !selection.gender) return;
+    const availableTypes = getAvailableTypeLabels(records);
+    typeOptions.innerHTML = "";
+
+    availableTypes.forEach((typeLabel) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.typeChoice = typeLabel;
+      button.className = "min-h-16 rounded-2xl border-2 border-[#0077B6]/20 bg-sky-50 px-5 py-4 text-left text-base font-extrabold text-[#005d90] transition hover:border-[#0077B6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0077B6] focus-visible:ring-offset-2";
+      button.setAttribute("aria-pressed", String(typeLabel === selection.typeLabel));
+      button.setAttribute("aria-label", `Tipo ${typeLabel}`);
+      button.innerHTML = '<span class="material-symbols-outlined mr-2 align-middle" aria-hidden="true">medical_services</span>';
+      button.append(typeLabel);
+      button.addEventListener("click", () => {
+        setHistory({ ...selection, step: "results", view: "guided", typeLabel });
+        setStatus(`Mostrando ${typeLabel}.`);
+        results?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      typeOptions.append(button);
+    });
+
+    if (typeEmpty) typeEmpty.hidden = availableTypes.length > 0;
   }
 
   function renderResults() {
@@ -718,7 +724,7 @@ const genderStyles = {
     const questions: Record<GuidedStep, string> = {
       gender: "¿Qué deseas ver?",
       sizes: "¿Qué tallas deseas ver?",
-      garment: "¿Uniformes o batas?",
+      garment: "¿Qué tipo de prenda deseas ver?",
       results: selection.view === "all" ? "Todo el catálogo" : "Prendas disponibles",
     };
     const progressText = selection.view === "all"
@@ -739,6 +745,7 @@ const genderStyles = {
     results.hidden = !isResults;
 
     if (selection.step === "sizes") updateSizeOptions();
+    if (selection.step === "garment") updateTypeOptions();
     if (isResults) renderResults();
   }
 
@@ -750,29 +757,20 @@ const genderStyles = {
         view: "guided",
         gender,
         sizeLabels: [],
-        garmentGroup: null,
+        typeLabel: null,
       });
       setStatus(`Elegiste ${labels[gender]}. Ahora selecciona tus tallas.`);
     });
   });
 
-  document.querySelectorAll<HTMLButtonElement>("[data-garment-choice]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const garmentGroup = button.dataset.garmentChoice as GarmentGroup;
-      setHistory({ ...selection, step: "results", view: "guided", garmentGroup });
-      setStatus(`Mostrando ${groupLabels[garmentGroup].toLocaleLowerCase()}.`);
-      results?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  });
-
   anySizeButton?.addEventListener("click", () => {
-    setHistory({ ...selection, step: "sizes", view: "guided", sizeLabels: [] });
+    setHistory({ ...selection, step: "sizes", view: "guided", sizeLabels: [], typeLabel: null });
     setStatus("Se mostrarán productos de cualquier talla.");
   });
 
   continueSizes?.addEventListener("click", () => {
-    setHistory({ ...selection, step: "garment", view: "guided" });
-    setStatus("Ahora elige entre uniformes y batas.");
+    setHistory({ ...selection, step: "garment", view: "guided", typeLabel: null });
+    setStatus("Ahora elige el tipo de prenda.");
   });
 
   document.querySelectorAll<HTMLButtonElement>("[data-guided-back]").forEach((button) => {

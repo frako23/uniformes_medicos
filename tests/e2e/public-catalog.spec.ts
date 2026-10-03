@@ -22,7 +22,7 @@ test.describe("public catalog regression", () => {
     await page.getByRole("button", { name: "Continuar", exact: true }).click();
 
     await expect(page.getByTestId("guided-step-garment")).toBeVisible();
-    await page.getByRole("button", { name: "Batas", exact: true }).click();
+    await page.locator("[data-type-choice]").first().click();
     await expect(page.getByTestId("guided-results")).toBeVisible();
   });
 });

@@ -10,7 +10,7 @@ test.describe("guided catalog navigation", () => {
 
     await page.getByRole("button", { name: "Cualquier talla", exact: true }).click();
     await page.getByRole("button", { name: "Continuar", exact: true }).click();
-    await page.getByRole("button", { name: "Uniformes", exact: true }).click();
+    await page.locator("[data-type-choice]").first().click();
     await expect(page.getByTestId("guided-results")).toBeVisible();
 
     await page.getByRole("button", { name: "Cambiar género", exact: true }).click();
@@ -25,7 +25,7 @@ test.describe("guided catalog navigation", () => {
     await page.getByRole("button", { name: "Damas", exact: true }).click();
     await page.getByRole("button", { name: "Cualquier talla", exact: true }).click();
     await page.getByRole("button", { name: "Continuar", exact: true }).click();
-    await page.getByRole("button", { name: "Batas", exact: true }).click();
+    await page.locator("[data-type-choice]").first().click();
     await page.getByRole("button", { name: "Reiniciar selección", exact: true }).click();
     await expect(page.getByTestId("guided-step-gender")).toBeVisible();
   });
