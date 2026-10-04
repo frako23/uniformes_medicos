@@ -2,11 +2,12 @@
 import AdminLayout from "../layout.astro";
 import ProductForm from "../../../components/admin/ProductForm.astro";
 import ImageManager from "../../../components/admin/ImageManager.astro";
-import { getProductByPublicId } from "../../../server/catalog/admin-products";
+import { getAdminProductFormOptions, getProductByPublicId } from "../../../server/catalog/admin-products";
 
 const product = Astro.params.id ? await getProductByPublicId(Astro.params.id) : null;
 if (!product) return Astro.redirect("/admin/productos", 302);
+const options = await getAdminProductFormOptions();
 ---
 <AdminLayout title={`Editar ${product.legacyTypeLabel}`}>
-  <section class="space-y-6"><div><a href="/admin/productos" class="text-sm underline">← Volver a productos</a><h1 class="mt-2 text-3xl font-bold">Editar producto</h1></div><div class="rounded-xl bg-white p-6 shadow-sm"><ProductForm product={product} csrfToken={Astro.locals.csrfToken ?? ""} /></div><div class="rounded-xl bg-white p-6 shadow-sm"><h2 class="mb-4 text-xl font-bold">Imágenes</h2><ImageManager product={product} csrfToken={Astro.locals.csrfToken ?? ""} /></div></section>
+  <section class="space-y-6"><div><a href="/admin/productos" class="text-sm underline">← Volver a productos</a><h1 class="mt-2 text-3xl font-bold">Editar producto</h1></div><div class="rounded-xl bg-white p-6 shadow-sm"><ProductForm product={product} options={options} csrfToken={Astro.locals.csrfToken ?? ""} /></div><div class="rounded-xl bg-white p-6 shadow-sm"><h2 class="mb-4 text-xl font-bold">Imágenes</h2><ImageManager product={product} csrfToken={Astro.locals.csrfToken ?? ""} /></div></section>
 </AdminLayout>

@@ -38,6 +38,32 @@ export function normalizeAdminProductFilterValues(values: string[]) {
   return [...uniqueValues.values()].sort((left, right) => left.localeCompare(right, "es", { sensitivity: "base" }));
 }
 
+export interface AdminProductFormOptions {
+  types: string[];
+  manufacturers: string[];
+  brands: string[];
+  colors: string[];
+  sizes: string[];
+}
+
+export async function getAdminProductFormOptions(): Promise<AdminProductFormOptions> {
+  const [typeRows, manufacturerRows, brandRows, colorRows, sizeRows] = await Promise.all([
+    db().selectDistinct({ value: products.legacyTypeLabel }).from(products),
+    db().selectDistinct({ value: products.manufacturer }).from(products),
+    db().selectDistinct({ value: products.brand }).from(products),
+    db().selectDistinct({ value: products.color }).from(products),
+    db().selectDistinct({ value: productVariants.sizeLabel }).from(productVariants),
+  ]);
+
+  return {
+    types: normalizeAdminProductFilterValues(typeRows.map((row) => row.value)),
+    manufacturers: normalizeAdminProductFilterValues(manufacturerRows.map((row) => row.value)),
+    brands: normalizeAdminProductFilterValues(brandRows.map((row) => row.value)),
+    colors: normalizeAdminProductFilterValues(colorRows.map((row) => row.value)),
+    sizes: normalizeAdminProductFilterValues(sizeRows.map((row) => row.value)),
+  };
+}
+
 export async function getAdminProductFilterOptions() {
   const [productRows, brandRows] = await Promise.all([
     db().selectDistinct({ value: products.legacyTypeLabel }).from(products),

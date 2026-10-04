@@ -1,9 +1,16 @@
 ---
 import type { ProductWithRelations } from "../../server/catalog/mapper";
+import type { AdminProductFormOptions } from "../../server/catalog/admin-products";
+import OptionSelect from "./OptionSelect.astro";
 import VariantEditor from "./VariantEditor.astro";
 
-interface Props { product?: ProductWithRelations; csrfToken: string; }
-const { product, csrfToken } = Astro.props;
+interface Props {
+  product?: ProductWithRelations;
+  options: AdminProductFormOptions;
+  csrfToken: string;
+}
+
+const { product, options, csrfToken } = Astro.props;
 const endpoint = product ? `/api/admin/products/${product.legacyDocumentId}` : "/api/admin/products";
 const method = product ? "PATCH" : "POST";
 ---
@@ -11,48 +18,97 @@ const method = product ? "PATCH" : "POST";
   {product && <input type="hidden" name="expectedUpdatedAt" value={product.updatedAt.toISOString()} />}
   <div id="form-error" class="hidden rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert"></div>
   <div class="grid gap-4 sm:grid-cols-2">
-    <label class="text-sm font-medium">Tipo/categoría<input name="legacyTypeLabel" value={product?.legacyTypeLabel ?? ""} required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-    <label class="text-sm font-medium">Fabricante<input name="manufacturer" value={product?.manufacturer ?? ""} required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-    <label class="text-sm font-medium">Marca<input name="brand" value={product?.brand ?? ""} required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-    <label class="text-sm font-medium">Género<select name="gender" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"><option selected={product?.gender === "Unisex" || !product} value="Unisex">Unisex</option><option selected={product?.gender === "Dama"} value="Dama">Dama</option><option selected={product?.gender === "Caballero"} value="Caballero">Caballero</option></select></label>
+    <OptionSelect id="product-type" name="legacyTypeLabel" label="Tipo/categoría" options={options.types} value={product?.legacyTypeLabel} />
+    <OptionSelect id="product-manufacturer" name="manufacturer" label="Fabricante" options={options.manufacturers} value={product?.manufacturer} />
+    <OptionSelect id="product-brand" name="brand" label="Marca" options={options.brands} value={product?.brand} />
+    <label class="text-sm font-medium">Género<select name="gender" class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option selected={product?.gender === "Unisex" || !product} value="Unisex">Unisex</option><option selected={product?.gender === "Dama"} value="Dama">Dama</option><option selected={product?.gender === "Caballero"} value="Caballero">Caballero</option></select></label>
     <label class="text-sm font-medium">Precio<input name="price" type="number" min="0" step="0.01" value={product?.price ?? "0"} required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
     <label class="text-sm font-medium">SKU<input name="sku" value={product?.sku ?? ""} class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-    <label class="text-sm font-medium">Color<input name="color" value={product?.color ?? ""} required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+    <OptionSelect id="product-color" name="color" label="Color" options={options.colors} value={product?.color} />
   </div>
   <div class="flex flex-wrap gap-6 rounded-xl border border-slate-200 p-4">
     <label class="flex items-center gap-2 text-sm"><input name="isPublished" type="checkbox" checked={product?.isPublished ?? false} /> Publicado</label>
     <label class="flex items-center gap-2 text-sm"><input name="isActive" type="checkbox" checked={product?.isActive ?? true} /> Activo</label>
   </div>
-  <VariantEditor variants={product?.variants} />
+  <VariantEditor variants={product?.variants} sizeOptions={options.sizes} />
   <div class="flex items-center gap-3"><button type="submit" class="rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">Guardar producto</button><a href="/admin/productos" class="rounded-lg border border-slate-300 px-4 py-3">Cancelar</a></div>
 </form>
 <script>
   const form = document.querySelector<HTMLFormElement>("#product-form");
   const variantContainer = document.querySelector<HTMLElement>("#variants");
+  const variantTemplate = document.querySelector<HTMLTemplateElement>("#variant-template");
   const addButton = document.querySelector<HTMLButtonElement>("#add-variant");
   const errorBox = document.querySelector<HTMLElement>("#form-error");
-  const addRow = () => {
-    const row = document.createElement("div");
-    row.className = "variant-row grid grid-cols-[1fr_1fr_auto] gap-3";
-    row.innerHTML = '<label class="text-sm">Talla<input name="sizeLabel" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label><label class="text-sm">Cantidad<input name="quantity" type="number" min="0" step="1" value="0" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label><button type="button" class="remove-variant self-end rounded-lg border border-slate-300 px-3 py-2" aria-label="Eliminar talla">×</button>';
-    variantContainer?.append(row);
+
+  const updateOptionField = (select: HTMLSelectElement) => {
+    const field = select.closest<HTMLElement>("[data-option-field]");
+    const input = field?.querySelector<HTMLInputElement>("[data-option-new]");
+    if (!input) return;
+    const isNew = select.value === select.dataset.optionSelect;
+    input.disabled = !isNew;
+    input.required = isNew;
+    input.closest<HTMLElement>(".mt-2")?.toggleAttribute("hidden", !isNew);
+    if (!isNew) input.value = "";
   };
+
+  const readOptionValue = (select: HTMLSelectElement | null) => {
+    if (!select) return "";
+    if (select.value !== select.dataset.optionSelect) return select.value;
+    return select.closest<HTMLElement>("[data-option-field]")?.querySelector<HTMLInputElement>("[data-option-new]")?.value ?? "";
+  };
+
+  form?.querySelectorAll<HTMLSelectElement>("[data-option-select]").forEach(updateOptionField);
+  form?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLSelectElement && target.matches("[data-option-select]")) updateOptionField(target);
+  });
+
+  let variantIndex = variantContainer?.querySelectorAll(".variant-row").length ?? 0;
+  const addRow = () => {
+    const fragment = variantTemplate?.content.cloneNode(true) as DocumentFragment | undefined;
+    if (!fragment || !variantContainer) return;
+    const row = fragment.querySelector<HTMLElement>(".variant-row");
+    const select = row?.querySelector<HTMLSelectElement>('select[name="sizeLabel"]');
+    const input = row?.querySelector<HTMLInputElement>("[data-option-new]");
+    if (!row || !select || !input) return;
+
+    const suffix = `new-${variantIndex++}`;
+    const selectId = `size-label-${suffix}`;
+    select.id = selectId;
+    select.dataset.newInput = `${selectId}-new`;
+    const labels = row.querySelectorAll<HTMLLabelElement>("label[for]");
+    labels[0]?.setAttribute("for", selectId);
+    labels[1]?.setAttribute("for", `${selectId}-new`);
+    input.id = `${selectId}-new`;
+    input.value = "";
+    row.querySelector<HTMLInputElement>('input[name="quantity"]')?.setAttribute("value", "0");
+    variantContainer.append(fragment);
+    updateOptionField(select);
+  };
+
   addButton?.addEventListener("click", addRow);
   variantContainer?.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     if (target.closest(".remove-variant") && variantContainer.children.length > 1) target.closest(".variant-row")?.remove();
   });
+
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     errorBox?.classList.add("hidden");
     const data = new FormData(form);
     const rows = [...(variantContainer?.querySelectorAll<HTMLElement>(".variant-row") ?? [])];
     const payload = {
-      legacyTypeLabel: data.get("legacyTypeLabel"), manufacturer: data.get("manufacturer"), brand: data.get("brand"),
-      gender: data.get("gender"), price: data.get("price"), sku: data.get("sku") || null, color: data.get("color"),
+      legacyTypeLabel: readOptionValue(form.querySelector<HTMLSelectElement>('select[name="legacyTypeLabel"]')),
+      manufacturer: readOptionValue(form.querySelector<HTMLSelectElement>('select[name="manufacturer"]')),
+      brand: readOptionValue(form.querySelector<HTMLSelectElement>('select[name="brand"]')),
+      gender: data.get("gender"), price: data.get("price"), sku: data.get("sku") || null,
+      color: readOptionValue(form.querySelector<HTMLSelectElement>('select[name="color"]')),
       isPublished: data.has("isPublished"), isActive: data.has("isActive"),
       expectedUpdatedAt: data.get("expectedUpdatedAt") || undefined,
-      variants: rows.map((row) => ({ sizeLabel: row.querySelector<HTMLInputElement>('input[name="sizeLabel"]')?.value, quantity: row.querySelector<HTMLInputElement>('input[name="quantity"]')?.value })),
+      variants: rows.map((row) => ({
+        sizeLabel: readOptionValue(row.querySelector<HTMLSelectElement>('select[name="sizeLabel"]')),
+        quantity: row.querySelector<HTMLInputElement>('input[name="quantity"]')?.value,
+      })),
     };
     const response = await fetch(form.dataset.endpoint ?? "/api/admin/products", { method: form.dataset.method ?? "POST", headers: { "Content-Type": "application/json", "x-csrf-token": form.dataset.csrf ?? "" }, body: JSON.stringify(payload) });
     const body = await response.json().catch(() => ({}));

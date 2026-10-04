@@ -1,0 +1,43 @@
+---
+interface Props {
+  id: string;
+  name: string;
+  label: string;
+  options: string[];
+  value?: string | null;
+}
+
+const { id, name, label, options, value = "" } = Astro.props;
+const newOptionValue = "__new__";
+const optionValues = [...new Set([...options, value ?? ""].map((option) => option.trim()).filter(Boolean))];
+const selectedValue = value?.trim() ?? "";
+---
+<div class="option-field min-w-0" data-option-field>
+  <label for={id} class="text-sm font-medium">{label}</label>
+  <select
+    id={id}
+    name={name}
+    required
+    data-option-select={newOptionValue}
+    data-new-input={`${id}-new`}
+    class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+  >
+    <option value="" disabled selected={!selectedValue}>Selecciona una opción</option>
+    {optionValues.map((option) => (
+      <option value={option} selected={selectedValue === option}>{option}</option>
+    ))}
+    <option value={newOptionValue} selected={selectedValue === newOptionValue}>+ Crear nueva…</option>
+  </select>
+  <div class="mt-2" hidden={selectedValue !== newOptionValue}>
+    <label for={`${id}-new`} class="text-xs font-normal text-slate-600">Nueva opción</label>
+    <input
+      id={`${id}-new`}
+      type="text"
+      data-option-new
+      disabled={selectedValue !== newOptionValue}
+      required={selectedValue === newOptionValue}
+      class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+      placeholder={`Escribe ${label.toLocaleLowerCase("es")}`}
+    />
+  </div>
+</div>

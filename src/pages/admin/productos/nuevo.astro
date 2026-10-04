@@ -1,7 +1,10 @@
 ---
 import AdminLayout from "../layout.astro";
 import ProductForm from "../../../components/admin/ProductForm.astro";
+import { getAdminProductFormOptions } from "../../../server/catalog/admin-products";
+
+const options = await getAdminProductFormOptions();
 ---
 <AdminLayout title="Nuevo producto">
-  <section class="space-y-6"><h1 class="text-3xl font-bold">Nuevo producto</h1><div class="rounded-xl bg-white p-6 shadow-sm"><ProductForm csrfToken={Astro.locals.csrfToken ?? ""} /></div></section>
+  <section class="space-y-6"><h1 class="text-3xl font-bold">Nuevo producto</h1><div class="rounded-xl bg-white p-6 shadow-sm"><ProductForm options={options} csrfToken={Astro.locals.csrfToken ?? ""} /></div></section>
 </AdminLayout>
