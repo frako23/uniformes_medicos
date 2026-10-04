@@ -1,9 +1,53 @@
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, or } from "drizzle-orm";
 import { products, productVariants } from "../../db/schema";
 import { db, withTransaction, type DbOrTransaction } from "../db";
 import { HttpError } from "../http/errors";
 import { productInputSchema } from "../validation/catalog";
 import { toProducto, type ProductWithRelations } from "./mapper";
+
+export const ADMIN_PRODUCT_PAGE_SIZES = [20, 50, 100] as const;
+export type AdminProductPageSize = (typeof ADMIN_PRODUCT_PAGE_SIZES)[number];
+
+export const ADMIN_PRODUCT_SORT_OPTIONS = [
+  { value: "updated", label: "Más recientes" },
+  { value: "priceAsc", label: "Precio: menor a mayor" },
+  { value: "priceDesc", label: "Precio: mayor a menor" },
+] as const;
+export type AdminProductSort = (typeof ADMIN_PRODUCT_SORT_OPTIONS)[number]["value"];
+
+export function normalizeAdminProductPageSize(value?: number): AdminProductPageSize {
+  return ADMIN_PRODUCT_PAGE_SIZES.includes(value as AdminProductPageSize)
+    ? (value as AdminProductPageSize)
+    : 20;
+}
+
+export function normalizeAdminProductSort(value?: string | null): AdminProductSort {
+  return ADMIN_PRODUCT_SORT_OPTIONS.some((option) => option.value === value)
+    ? (value as AdminProductSort)
+    : "updated";
+}
+
+export function normalizeAdminProductFilterValues(values: string[]) {
+  const uniqueValues = new Map<string, string>();
+  for (const rawValue of values) {
+    const value = rawValue.trim();
+    if (!value) continue;
+    const key = value.toLocaleLowerCase("es");
+    if (!uniqueValues.has(key)) uniqueValues.set(key, value);
+  }
+  return [...uniqueValues.values()].sort((left, right) => left.localeCompare(right, "es", { sensitivity: "base" }));
+}
+
+export async function getAdminProductFilterOptions() {
+  const [productRows, brandRows] = await Promise.all([
+    db().selectDistinct({ value: products.legacyTypeLabel }).from(products),
+    db().selectDistinct({ value: products.brand }).from(products),
+  ]);
+  return {
+    products: normalizeAdminProductFilterValues(productRows.map((row) => row.value)),
+    brands: normalizeAdminProductFilterValues(brandRows.map((row) => row.value)),
+  };
+}
 
 async function findByPublicId(source: DbOrTransaction, publicId: string) {
   const result = await source.query.products.findFirst({
@@ -21,18 +65,21 @@ export async function listAdminProducts(input: {
   page?: number;
   pageSize?: number;
   search?: string;
+  brand?: string;
   isPublished?: boolean;
   isActive?: boolean;
   gender?: "Dama" | "Caballero" | "Unisex";
   type?: string;
+  sort?: AdminProductSort;
 }) {
-  const page = Math.max(1, input.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, input.pageSize ?? 25));
+  const page = Number.isInteger(input.page) && (input.page as number) > 0 ? (input.page as number) : 1;
+  const pageSize = normalizeAdminProductPageSize(input.pageSize);
   const filters = [];
   if (typeof input.isPublished === "boolean") filters.push(eq(products.isPublished, input.isPublished));
   if (typeof input.isActive === "boolean") filters.push(eq(products.isActive, input.isActive));
   if (input.gender) filters.push(eq(products.gender, input.gender));
   if (input.type?.trim()) filters.push(ilike(products.legacyTypeLabel, `%${input.type.trim()}%`));
+  if (input.brand?.trim()) filters.push(ilike(products.brand, `%${input.brand.trim()}%`));
   if (input.search?.trim()) {
     const term = `%${input.search.trim()}%`;
     filters.push(
@@ -45,18 +92,36 @@ export async function listAdminProducts(input: {
     );
   }
 
+  const where = filters.length ? and(...filters) : undefined;
+  const [{ count: totalCount }] = await db()
+    .select({ count: count() })
+    .from(products)
+    .where(where);
+  const total = Number(totalCount);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const sort = normalizeAdminProductSort(input.sort);
+  const orderBy = sort === "priceAsc"
+    ? [asc(products.price), asc(products.legacyId)]
+    : sort === "priceDesc"
+      ? [desc(products.price), asc(products.legacyId)]
+      : [desc(products.updatedAt), asc(products.legacyId)];
   const rows = await db().query.products.findMany({
-    where: filters.length ? and(...filters) : undefined,
-    orderBy: [desc(products.updatedAt), asc(products.legacyId)],
+    where,
+    orderBy,
     limit: pageSize,
-    offset: (page - 1) * pageSize,
+    offset: (currentPage - 1) * pageSize,
     with: { variants: true, images: true },
   });
   return {
     data: rows.map((row) => toProducto(row as ProductWithRelations)),
-    page,
+    page: currentPage,
     pageSize,
-    hasNextPage: rows.length === pageSize,
+    sort,
+    total,
+    totalPages,
+    hasPreviousPage: currentPage > 1,
+    hasNextPage: currentPage < totalPages,
   };
 }
 

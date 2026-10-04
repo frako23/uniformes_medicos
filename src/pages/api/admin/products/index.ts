@@ -1,7 +1,12 @@
 import { requireMutation, requireOwner } from "../../../../server/auth/guards";
 import { errorResponse } from "../../../../server/http/errors";
 import { jsonOk } from "../../../../server/http/responses";
-import { createProduct, listAdminProducts } from "../../../../server/catalog/admin-products";
+import {
+  createProduct,
+  listAdminProducts,
+  normalizeAdminProductPageSize,
+  normalizeAdminProductSort,
+} from "../../../../server/catalog/admin-products";
 
 export const GET = async ({ request }: { request: Request }) => {
   try {
@@ -12,14 +17,16 @@ export const GET = async ({ request }: { request: Request }) => {
     return jsonOk(
       await listAdminProducts({
         page: Number(url.searchParams.get("page") ?? 1),
-        pageSize: Number(url.searchParams.get("pageSize") ?? 25),
+        pageSize: normalizeAdminProductPageSize(Number(url.searchParams.get("pageSize") ?? 20)),
         search: url.searchParams.get("search") ?? undefined,
+        brand: url.searchParams.get("brand") ?? undefined,
         isPublished: parseBoolean(url.searchParams.get("isPublished")),
         isActive: parseBoolean(url.searchParams.get("isActive")),
         gender: ["Dama", "Caballero", "Unisex"].includes(url.searchParams.get("gender") ?? "")
           ? url.searchParams.get("gender") as "Dama" | "Caballero" | "Unisex"
           : undefined,
         type: url.searchParams.get("type") ?? undefined,
+        sort: normalizeAdminProductSort(url.searchParams.get("sort")),
       }),
     );
   } catch (error) {

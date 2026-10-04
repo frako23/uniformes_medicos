@@ -1,18 +1,87 @@
 ---
 import AdminLayout from "../layout.astro";
-import { listAdminProducts } from "../../../server/catalog/admin-products";
+import {
+  ADMIN_PRODUCT_PAGE_SIZES,
+  ADMIN_PRODUCT_SORT_OPTIONS,
+  getAdminProductFilterOptions,
+  listAdminProducts,
+  normalizeAdminProductPageSize,
+  normalizeAdminProductSort,
+} from "../../../server/catalog/admin-products";
 
-const result = await listAdminProducts({ page: 1, pageSize: 100 });
+const requestedPage = Number(Astro.url.searchParams.get("page") ?? 1);
+const requestedPageSize = Number(Astro.url.searchParams.get("pageSize") ?? 20);
+const productFilter = Astro.url.searchParams.get("type") ?? "";
+const brandFilter = Astro.url.searchParams.get("brand") ?? "";
+const sort = normalizeAdminProductSort(Astro.url.searchParams.get("sort"));
+const [result, filterOptions] = await Promise.all([
+  listAdminProducts({
+    page: requestedPage,
+    pageSize: normalizeAdminProductPageSize(requestedPageSize),
+    type: productFilter || undefined,
+    brand: brandFilter || undefined,
+    sort,
+  }),
+  getAdminProductFilterOptions(),
+]);
+const pageUrl = (page: number) => {
+  const url = new URL(Astro.url);
+  url.searchParams.set("page", String(page));
+  url.searchParams.set("pageSize", String(result.pageSize));
+  return `${url.pathname}?${url.searchParams.toString()}`;
+};
 ---
 <AdminLayout title="Productos">
   <section class="space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 class="text-3xl font-bold">Productos</h1>
-        <p class="mt-1 text-slate-600">{result.data.length} productos en esta página.</p>
+        <p class="mt-1 text-slate-600">{result.total} {result.total === 1 ? "producto" : "productos"} en total.</p>
       </div>
-      <a href="/admin/productos/nuevo" class="rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">Nuevo producto</a>
+      <div class="flex flex-wrap items-center justify-end gap-3">
+        <a href="/admin/productos/nuevo" class="rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">Nuevo producto</a>
+      </div>
     </div>
+    <form method="get" class="grid gap-4 rounded-xl bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+      <input type="hidden" name="page" value="1" />
+      <div>
+        <label for="product-filter" class="mb-1 block text-sm font-medium text-slate-700">Producto</label>
+        <select id="product-filter" name="type" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+          <option value="" selected={!productFilter}>Todos los productos</option>
+          {filterOptions.products.map((product) => (
+            <option value={product} selected={productFilter === product}>{product}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label for="brand-filter" class="mb-1 block text-sm font-medium text-slate-700">Marca</label>
+        <select id="brand-filter" name="brand" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+          <option value="" selected={!brandFilter}>Todas las marcas</option>
+          {filterOptions.brands.map((brand) => (
+            <option value={brand} selected={brandFilter === brand}>{brand}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label for="sort" class="mb-1 block text-sm font-medium text-slate-700">Ordenar por</label>
+        <select id="sort" name="sort" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+          {ADMIN_PRODUCT_SORT_OPTIONS.map((option) => (
+            <option value={option.value} selected={result.sort === option.value}>{option.label}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label for="page-size" class="mb-1 block text-sm font-medium text-slate-700">Mostrar por página</label>
+        <div class="flex gap-2">
+          <select id="page-size" name="pageSize" class="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+            {ADMIN_PRODUCT_PAGE_SIZES.map((size) => (
+              <option value={size} selected={result.pageSize === size}>{size}</option>
+            ))}
+          </select>
+          <button type="submit" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Aplicar</button>
+        </div>
+      </div>
+    </form>
     {result.data.length === 0 ? (
       <p class="rounded-xl bg-white p-6 text-slate-600">No hay productos registrados.</p>
     ) : (
@@ -31,6 +100,23 @@ const result = await listAdminProducts({ page: 1, pageSize: 100 });
             ))}
           </tbody>
         </table>
+      </div>
+    )}
+    {result.totalPages > 1 && (
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 shadow-sm">
+        <p class="text-sm text-slate-600">Página {result.page} de {result.totalPages}</p>
+        <nav class="flex items-center gap-2" aria-label="Paginación de productos">
+          {result.hasPreviousPage ? (
+            <a href={pageUrl(result.page - 1)} class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50">Anterior</a>
+          ) : (
+            <span aria-disabled="true" class="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-400">Anterior</span>
+          )}
+          {result.hasNextPage ? (
+            <a href={pageUrl(result.page + 1)} class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50">Siguiente</a>
+          ) : (
+            <span aria-disabled="true" class="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-400">Siguiente</span>
+          )}
+        </nav>
       </div>
     )}
   </section>
