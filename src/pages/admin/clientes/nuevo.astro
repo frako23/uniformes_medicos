@@ -1,0 +1,24 @@
+---
+import AdminLayout from "../layout.astro";
+import ClientForm from "../../../components/admin/ClientForm.astro";
+import { db } from "../../../server/db";
+import { loadReferenceValues, referenceOptions } from "../../../server/reference/values";
+
+const reference = await loadReferenceValues(db());
+const options = {
+  size: referenceOptions(reference, "size"),
+  city: referenceOptions(reference, "city"),
+  hospital: referenceOptions(reference, "hospital"),
+  clinic: referenceOptions(reference, "clinic"),
+  specialty: referenceOptions(reference, "specialty"),
+};
+---
+<AdminLayout title="Nuevo cliente">
+  <section class="space-y-6">
+    <a href="/admin/clientes" class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver a clientes</a>
+    <h1 class="text-3xl font-bold">Nuevo cliente</h1>
+    <div class="rounded-xl bg-white p-4 shadow-sm sm:p-6">
+      <ClientForm options={options} csrfToken={Astro.locals.csrfToken ?? ""} />
+    </div>
+  </section>
+</AdminLayout>

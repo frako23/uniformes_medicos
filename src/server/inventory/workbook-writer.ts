@@ -1,18 +1,21 @@
-import writeXlsxFile from "write-excel-file/node";
-import dataValidation from "@onparallel/write-excel-file-data-validation";
 import { compareSizeLabels } from "../../utils/catalog-filters";
+import {
+  ID_STYLE,
+  heading,
+  headerCell,
+  metadataRows,
+  text,
+  textColumn,
+  writeWorkbook,
+  type Cell,
+} from "../bulk/workbook-writer";
 import type { CatalogSnapshot, SnapshotProduct } from "./changes";
 import {
   AMBIGUOUS_SIZES_MARKER,
   FIXED_COLUMNS,
-  FORMAT_VERSION,
   KIND_INVENTORY_LABEL,
-  KIND_TEMPLATE_LABEL,
   MAX_FILE_BYTES,
   MAX_PRODUCT_ROWS,
-  META_FILE_KIND,
-  META_FORMAT_VERSION,
-  META_GENERATED_AT,
   SHEET_INSTRUCTIONS,
   SHEET_INVENTORY,
   SHEET_LISTS,
@@ -22,21 +25,11 @@ import {
   normalizeSizeKey,
 } from "./workbook-format";
 
-type Cell = Record<string, unknown> | null;
-
 export interface BuildWorkbookInput {
   kind: "plantilla" | "inventario";
   snapshot: CatalogSnapshot;
   generatedAt: Date;
 }
-
-const HEADER_STYLE = { fontWeight: "bold", backgroundColor: "#e2e8f0" } as const;
-const ID_STYLE = { backgroundColor: "#e5e7eb", textColor: "#475569" } as const;
-
-const text = (value: string | null, extra: Record<string, unknown> = {}): Cell =>
-  value === null || value === "" ? null : { value, type: String, ...extra };
-const textColumn = (value: string | null): Cell => text(value, { format: "@" });
-const heading = (value: string): Cell => ({ value, type: String, fontWeight: "bold" });
 
 function sizeColumnLabels(snapshot: CatalogSnapshot) {
   return Object.values(snapshot.canonicalSizes).sort(compareSizeLabels);
@@ -94,13 +87,7 @@ function instructionsSheet(input: BuildWorkbookInput): Cell[][] {
     rows.push([text(`En estos productos la celda de la talla duplicada dice “${AMBIGUOUS_SIZES_MARKER}”. Unifícalas desde la edición del producto antes de cargarlos.`)]);
     for (const product of ambiguous) rows.push([text(`ID ${product.legacyId}`), text(`${product.type} · ${product.brand} · ${product.color}`)]);
   }
-  rows.push(
-    [],
-    [heading("Datos del archivo")],
-    [text(META_FILE_KIND), text(kind === "plantilla" ? KIND_TEMPLATE_LABEL : KIND_INVENTORY_LABEL)],
-    [text(META_GENERATED_AT), text(generatedAt.toISOString())],
-    [text(META_FORMAT_VERSION), text(String(FORMAT_VERSION))],
-  );
+  rows.push(...metadataRows({ kind: kind === "plantilla" ? "plantilla" : "datos", dataKindLabel: KIND_INVENTORY_LABEL, generatedAt }));
   return rows;
 }
 
@@ -122,8 +109,8 @@ function listsSheet(snapshot: CatalogSnapshot) {
 
 function inventoryRows(input: BuildWorkbookInput, sizeLabels: string[]): Cell[][] {
   const header: Cell[] = [
-    ...FIXED_COLUMNS.map((column) => ({ value: column.header, type: String, ...HEADER_STYLE })),
-    ...sizeLabels.map((label) => ({ value: `${SIZE_HEADER_PREFIX} ${label}`, type: String, ...HEADER_STYLE })),
+    ...FIXED_COLUMNS.map((column) => headerCell(column.header)),
+    ...sizeLabels.map((label) => headerCell(`${SIZE_HEADER_PREFIX} ${label}`)),
   ];
   if (input.kind === "plantilla") return [header];
 
@@ -230,10 +217,5 @@ export async function buildInventoryWorkbook(input: BuildWorkbookInput): Promise
     { data: lists.rows, sheet: SHEET_LISTS, columns: [{ width: 24 }, { width: 24 }, { width: 24 }, { width: 24 }, { width: 12 }] },
   ];
 
-  // Los tipos de `write-excel-file` no conocen la opción `dataValidation` del complemento.
-  const write = writeXlsxFile as unknown as (
-    sheets: unknown,
-    options: unknown,
-  ) => { toBuffer(): Promise<Buffer> };
-  return write(sheets, { features: [dataValidation] }).toBuffer();
+  return writeWorkbook(sheets);
 }

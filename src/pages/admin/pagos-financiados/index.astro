@@ -1,0 +1,304 @@
+---
+import AdminLayout from "../layout.astro";
+import ConfirmDialog from "../../../components/admin/ConfirmDialog.astro";
+import PaymentDialog from "../../../components/admin/PaymentDialog.astro";
+import { getClientByRef } from "../../../server/clients/repository";
+import { db } from "../../../server/db";
+import { getInstallmentList } from "../../../server/financing/service";
+import { formatDate } from "../../../utils/dates";
+import { formatBolivares, formatEuroRate, formatMoney } from "../../../utils/money";
+
+const params = Object.fromEntries(Astro.url.searchParams);
+const list = await getInstallmentList(params);
+const { query } = list;
+const clientFilter = query.client ? await getClientByRef(db(), query.client) : undefined;
+const hasFilters = Boolean(query.client || query.from || query.to);
+const flash = Astro.url.searchParams.get("pago") === "1" ? "Pago registrado" : Astro.url.searchParams.get("deshecho") === "1" ? "Pago deshecho" : "";
+const csrfToken = Astro.locals.csrfToken ?? "";
+
+const STATUS_OPTIONS = [
+  ["overdue", "Vencidas"],
+  ["upcoming", "Próximas (15 días)"],
+  ["pending", "Todas las pendientes"],
+  ["paid", "Pagadas"],
+] as const;
+const EMPTY_MESSAGES = {
+  overdue: "No hay cuotas vencidas.",
+  upcoming: "No hay cuotas que venzan en los próximos 15 días.",
+  pending: "No hay cuotas pendientes.",
+  paid: "No hay cuotas pagadas con estos filtros.",
+} as const;
+
+const pageUrl = (page: number) => {
+  const url = new URL(Astro.url);
+  url.searchParams.set("page", String(page));
+  return `${url.pathname}?${url.searchParams.toString()}`;
+};
+
+function stateText(item: (typeof list.data)[number]) {
+  if (item.state === "vencida") return `Vencida hace ${item.daysOverdue} ${item.daysOverdue === 1 ? "día" : "días"}`;
+  if (item.state === "vence_hoy") return "Vence hoy";
+  if (item.state === "por_vencer") return "Por vencer";
+  return item.payment?.origin === "carga_masiva" ? "Pagada (registrada por carga masiva)" : `Pagada${item.payment?.paidOn ? ` el ${formatDate(item.payment.paidOn)}` : ""}`;
+}
+const stateClass = (state: string) =>
+  state === "vencida" ? "border-red-300 bg-red-50 text-red-800" : state === "pagada" ? "border-green-300 bg-green-50 text-green-900" : "border-slate-300 bg-slate-50 text-slate-800";
+const selectClass = "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm";
+const labelClass = "mb-1 block text-sm font-medium text-slate-700";
+const summaryCards = [
+  ["Por cobrar", list.summary.receivableUsd],
+  ["Vencido", list.summary.overdueUsd],
+  ["Vence en 15 días", list.summary.next15DaysUsd],
+  ["Cobrado este mes", list.summary.collectedThisMonthUsd],
+] as const;
+const noFinancingsAtAll = list.summary.totalFinancings === 0;
+---
+<AdminLayout title="Pagos financiados">
+  <section class="space-y-6">
+    <div role="status" aria-live="polite" class="sr-only" id="payments-status">{flash}</div>
+    {flash && <p class="rounded-lg border border-green-300 bg-green-50 p-3 text-sm font-semibold text-green-900">{flash}</p>}
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h1 class="text-3xl font-bold">Pagos financiados</h1>
+      <div class="flex flex-wrap gap-3">
+        <a href="/admin/pagos-financiados/carga-masiva" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold hover:bg-slate-50">Carga masiva</a>
+        <a href="/admin/pagos-financiados/nuevo" class="inline-flex min-h-[44px] items-center rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">Nuevo financiamiento</a>
+      </div>
+    </div>
+
+    <dl class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Resumen">
+      {summaryCards.map(([label, value]) => (
+        <div class="rounded-xl bg-white p-4 shadow-sm">
+          <dt class="text-xs font-medium text-slate-600">{label}</dt>
+          <dd class="text-2xl font-bold">{formatMoney(value)}</dd>
+        </div>
+      ))}
+    </dl>
+
+    <p class="text-sm text-slate-700">
+      {list.rate
+        ? `Tasa euro BCV: ${formatEuroRate(list.rate.value)} (${formatDate(list.rate.rateDate)})`
+        : "Sin tasa disponible: los montos en bolívares se calcularán al registrar el pago"}
+      {list.rate && list.rateStale && <span class="ml-1 text-amber-800">No se pudo actualizar; se muestra la última tasa disponible</span>}
+    </p>
+
+    {noFinancingsAtAll ? (
+      <div class="space-y-3 rounded-xl bg-white p-6 text-slate-600">
+        <p>Todavía no hay financiamientos.</p>
+        <div class="flex flex-wrap gap-3">
+          <a href="/admin/pagos-financiados/nuevo" class="inline-flex min-h-[44px] items-center rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700">Nuevo financiamiento</a>
+          <a href="/admin/pagos-financiados/carga-masiva" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50">Usar carga masiva</a>
+        </div>
+      </div>
+    ) : (
+      <>
+        <form method="get" id="filters" class="grid gap-4 rounded-xl bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label for="status" class={labelClass}>Estado</label>
+            <select id="status" name="status" class={selectClass}>
+              {STATUS_OPTIONS.map(([value, label]) => <option value={value} selected={query.status === value}>{label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label for="from" class={labelClass}>Desde</label>
+            <input id="from" name="from" type="date" value={query.from ?? ""} class={selectClass} />
+          </div>
+          <div>
+            <label for="to" class={labelClass}>Hasta</label>
+            <input id="to" name="to" type="date" value={query.to ?? ""} class={selectClass} />
+          </div>
+          <div>
+            <label for="pageSize" class={labelClass}>Mostrar por página</label>
+            <select id="pageSize" name="pageSize" class={selectClass}>
+              {[20, 50, 100].map((size) => <option value={size} selected={query.pageSize === size}>{size}</option>)}
+            </select>
+          </div>
+          <div class="sm:col-span-2 lg:col-span-4">
+            <input type="hidden" name="client" id="client-ref" value={query.client ?? ""} />
+            <label for="client-search" class={labelClass}>Cliente (nombre o celular)</label>
+            <div id="client-chip" class={`${clientFilter ? "flex" : "hidden"} flex-wrap items-center gap-3 text-sm`}>
+              <span class="font-semibold">{clientFilter ? clientFilter.name : ""}</span>
+              <button type="button" id="client-clear" class="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 font-semibold hover:bg-slate-50">Quitar cliente</button>
+            </div>
+            <div id="client-search-box" class={clientFilter ? "hidden" : ""}>
+              <input id="client-search" type="search" autocomplete="off" class={selectClass} />
+              <div id="client-results" role="radiogroup" aria-label="Resultados de clientes" class="mt-2 space-y-2"></div>
+            </div>
+          </div>
+          <div class="flex items-end gap-2">
+            <button type="submit" class="min-h-[44px] rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Aplicar</button>
+            <a href="/admin/pagos-financiados" class="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Quitar filtros</a>
+          </div>
+        </form>
+
+        <div id="selection-bar" hidden class="sticky top-2 z-10">
+          <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-300 bg-white p-3 shadow">
+            <p id="selection-text" class="text-sm font-semibold" role="status" aria-live="polite"></p>
+            <button type="button" id="selection-pay" class="min-h-[44px] rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700">Registrar pago</button>
+          </div>
+        </div>
+
+        {list.data.length === 0 ? (
+          <div class="space-y-3 rounded-xl bg-white p-6 text-slate-600">
+            <p>{EMPTY_MESSAGES[query.status]}</p>
+            {hasFilters && <a href="/admin/pagos-financiados" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50">Quitar filtros</a>}
+          </div>
+        ) : (
+          <ul class="space-y-3" id="installment-list">
+            {list.data.map((item) => {
+              const selectable = item.state !== "pagada" && !item.financingAnnulled;
+              return (
+                <li class="grid gap-3 rounded-xl bg-white p-4 text-sm shadow-sm sm:grid-cols-[auto_1fr_auto] sm:items-center">
+                  <div class="min-h-[44px] min-w-[44px]">
+                    {selectable && (
+                      <label class="flex min-h-[44px] min-w-[44px] items-center justify-center">
+                        <input
+                          type="checkbox"
+                          data-select
+                          data-id={item.id}
+                          data-label={item.label}
+                          data-client={item.client.name}
+                          data-amount={item.amountUsd}
+                          aria-label={`Seleccionar la cuota ${item.label} de ${item.client.name}`}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <div class="min-w-0 space-y-1">
+                    <p class="break-words">
+                      <a class="font-semibold underline" href={`/admin/clientes/${item.client.ref}`}>{item.client.name}</a>
+                      · <a class="underline" href={`/admin/pagos-financiados/${item.financingRef}`}>{item.description}</a>
+                    </p>
+                    <p>Cuota {item.label} · vence el {formatDate(item.dueDate)}</p>
+                    <p>
+                      <span class={`inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${stateClass(item.state)}`}>{stateText(item)}</span>
+                      {item.financingAnnulled && <span class="ml-2 text-xs font-semibold">Financiamiento anulado</span>}
+                    </p>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-3 sm:justify-end">
+                    <div class="sm:text-right">
+                      <p class="text-base font-bold">{formatMoney(item.amountUsd)}</p>
+                      {item.amountVesEquivalent && <p class="text-xs text-slate-600">{formatBolivares(item.amountVesEquivalent)}</p>}
+                    </div>
+                    {item.reminderUrl && !item.financingAnnulled && (
+                      <a href={item.reminderUrl} target="_blank" rel="noopener noreferrer" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50">Recordar por WhatsApp</a>
+                    )}
+                    {selectable && (
+                      <button
+                        type="button"
+                        data-pay
+                        data-id={item.id}
+                        data-label={item.label}
+                        data-client={item.client.name}
+                        data-amount={item.amountUsd}
+                        class="min-h-[44px] rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50"
+                      >Registrar pago</button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {list.totalPages > 1 && (
+          <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 shadow-sm">
+            <p class="text-sm text-slate-600">Página {list.page} de {list.totalPages}</p>
+            <nav class="flex items-center gap-2" aria-label="Paginación de cuotas">
+              {list.page > 1 ? <a href={pageUrl(list.page - 1)} class="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50">Anterior</a> : <span aria-disabled="true" class="inline-flex min-h-[44px] items-center rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-400">Anterior</span>}
+              {list.page < list.totalPages ? <a href={pageUrl(list.page + 1)} class="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50">Siguiente</a> : <span aria-disabled="true" class="inline-flex min-h-[44px] items-center rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-400">Siguiente</span>}
+            </nav>
+          </div>
+        )}
+      </>
+    )}
+  </section>
+  <PaymentDialog csrfToken={csrfToken} today={list.summary.today} />
+  <ConfirmDialog />
+</AdminLayout>
+
+<script>
+  import { formatMoney, fromCents, toCents } from "../../../utils/money";
+
+  interface Item {
+    id: string;
+    label: string;
+    client: string;
+    amountUsd: string;
+  }
+  const readItem = (element: HTMLElement): Item => ({
+    id: element.dataset.id!,
+    label: element.dataset.label!,
+    client: element.dataset.client!,
+    amountUsd: element.dataset.amount!,
+  });
+
+  async function pay(items: Item[]) {
+    if (await window.openPaymentDialog(items)) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("pago", "1");
+      window.location.href = url.toString();
+    }
+  }
+
+  document.querySelectorAll<HTMLButtonElement>("button[data-pay]").forEach((button) => {
+    button.addEventListener("click", () => void pay([readItem(button)]));
+  });
+
+  const bar = document.querySelector<HTMLElement>("#selection-bar");
+  const barText = document.querySelector<HTMLElement>("#selection-text");
+  const checkboxes = [...document.querySelectorAll<HTMLInputElement>("input[data-select]")];
+  const selected = () => checkboxes.filter((box) => box.checked).map((box) => readItem(box));
+  function updateBar() {
+    const items = selected();
+    if (!bar || !barText) return;
+    bar.hidden = items.length === 0;
+    const total = items.reduce((sum, item) => sum + toCents(item.amountUsd), 0);
+    barText.textContent = `${items.length} ${items.length === 1 ? "cuota seleccionada" : "cuotas seleccionadas"} · Total ${formatMoney(fromCents(total))}`;
+  }
+  checkboxes.forEach((box) => box.addEventListener("change", updateBar));
+  document.querySelector<HTMLButtonElement>("#selection-pay")?.addEventListener("click", () => void pay(selected()));
+
+  /* Buscador de cliente del filtro */
+  const search = document.querySelector<HTMLInputElement>("#client-search");
+  const results = document.querySelector<HTMLElement>("#client-results");
+  const hidden = document.querySelector<HTMLInputElement>("#client-ref");
+  const chip = document.querySelector<HTMLElement>("#client-chip");
+  const box = document.querySelector<HTMLElement>("#client-search-box");
+  let timer: number | undefined;
+  search?.addEventListener("input", () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(async () => {
+      if (!results) return;
+      results.replaceChildren();
+      const query = search.value.trim();
+      if (query.length < 2) return;
+      const body = await fetch(`/api/admin/clients?search=${encodeURIComponent(query)}&pageSize=20`).then((response) => response.json()).catch(() => ({ data: [] }));
+      for (const client of (body.data ?? []) as Array<{ ref: number; name: string; phone: string }>) {
+        const option = Object.assign(document.createElement("button"), {
+          type: "button",
+          className: "block min-h-[44px] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm hover:bg-slate-50",
+          textContent: `${client.name} · ${client.phone}`,
+        });
+        option.setAttribute("role", "radio");
+        option.setAttribute("aria-checked", "false");
+        option.addEventListener("click", () => {
+          if (hidden) hidden.value = String(client.ref);
+          if (chip) {
+            chip.querySelector("span")!.textContent = client.name;
+            chip.classList.remove("hidden");
+            chip.classList.add("flex");
+          }
+          box?.classList.add("hidden");
+        });
+        results.append(option);
+      }
+    }, 250);
+  });
+  document.querySelector<HTMLButtonElement>("#client-clear")?.addEventListener("click", () => {
+    if (hidden) hidden.value = "";
+    chip?.classList.add("hidden");
+    chip?.classList.remove("flex");
+    box?.classList.remove("hidden");
+    search?.focus();
+  });
+</script>

@@ -1,0 +1,369 @@
+---
+interface Props {
+  csrfToken: string;
+  /** Hoy en Caracas (AAAA-MM-DD). */
+  today: string;
+}
+
+const { csrfToken, today } = Astro.props;
+const input = "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2";
+const button = "min-h-[44px] rounded-lg px-4 py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900";
+---
+<dialog id="payment-dialog" aria-labelledby="payment-title" data-csrf={csrfToken} data-today={today} class="max-h-[92vh] w-[min(34rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
+  <form id="payment-form" method="dialog" novalidate class="space-y-4 p-4 sm:p-6">
+    <h2 id="payment-title" class="text-lg font-bold">Registrar pago</h2>
+    <div id="payment-error" hidden role="alert" tabindex="-1" class="space-y-2 rounded-lg bg-red-50 p-3 text-sm text-red-800"></div>
+    <ul id="payment-items" class="space-y-1 text-sm"></ul>
+    <p id="payment-total" class="text-sm font-semibold"></p>
+
+    <div>
+      <label for="payment-date" class="text-sm font-medium">Fecha de pago</label>
+      <input id="payment-date" type="date" value={today} max={today} required class={input} />
+      <p id="payment-date-error" class="mt-1 text-sm text-red-700"></p>
+    </div>
+
+    <fieldset>
+      <legend class="text-sm font-medium">Moneda</legend>
+      <div class="mt-1 flex flex-wrap gap-4">
+        <label class="flex min-h-[44px] items-center gap-2"><input type="radio" name="payment-currency" value="USD" checked /> Dólares</label>
+        <label class="flex min-h-[44px] items-center gap-2"><input type="radio" name="payment-currency" value="VES" /> Bolívares</label>
+      </div>
+    </fieldset>
+
+    <div id="payment-rate-box" hidden class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+      <p id="payment-rate-text" role="status" aria-live="polite"></p>
+      <p id="payment-rate-stale" hidden class="text-xs text-amber-800">La fuente no respondió; es la última tasa guardada.</p>
+      <div>
+        <label for="payment-rate" class="text-sm font-medium">Tasa (Bs por €)</label>
+        <input id="payment-rate" type="text" inputmode="decimal" class={input} />
+        <p id="payment-rate-error" class="mt-1 text-sm text-red-700"></p>
+      </div>
+      <p id="payment-ves" class="font-semibold"></p>
+    </div>
+
+    <div id="payment-partial-box" hidden class="space-y-2">
+      <label class="flex min-h-[44px] items-center gap-2 text-sm"><input id="payment-partial-check" type="checkbox" /> El cliente pagó solo una parte</label>
+      <div id="payment-partial-fields" hidden>
+        <label for="payment-partial" class="text-sm font-medium">Monto recibido ($)</label>
+        <input id="payment-partial" type="text" inputmode="decimal" class={input} />
+        <p id="payment-partial-note" class="mt-1 text-xs text-slate-600"></p>
+        <p id="payment-partial-error" class="mt-1 text-sm text-red-700"></p>
+      </div>
+    </div>
+
+    <div>
+      <label for="payment-reference" class="text-sm font-medium">Referencia (opcional)</label>
+      <input id="payment-reference" type="text" maxlength="160" class={input} />
+      <p class="mt-1 text-xs text-slate-600">Ej.: pago móvil 1234</p>
+    </div>
+
+    <div class="flex flex-wrap justify-end gap-3">
+      <button type="button" id="payment-cancel" class={`${button} border border-slate-300 hover:bg-slate-50`}>Cancelar</button>
+      <button type="submit" id="payment-submit" class={`${button} bg-slate-900 text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400`}>Registrar pago</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  import { formatDate } from "../../utils/dates";
+  import { formatBolivares, formatEuroRate, formatMoney, fromCents, toCents, usdToVes } from "../../utils/money";
+
+  interface Item {
+    id: string;
+    label: string;
+    client: string;
+    amountUsd: string;
+  }
+  type RateState = "cargando" | "oficial" | "sin_tasa" | "desactualizada";
+
+  declare global {
+    interface Window {
+      openPaymentDialog: (items: Item[]) => Promise<boolean>;
+    }
+  }
+
+  const dialog = document.querySelector<HTMLDialogElement>("#payment-dialog")!;
+  const form = dialog.querySelector<HTMLFormElement>("#payment-form")!;
+  const $ = <T extends HTMLElement>(selector: string) => dialog.querySelector<T>(selector)!;
+  const itemsList = $<HTMLUListElement>("#payment-items");
+  const totalLine = $<HTMLElement>("#payment-total");
+  const dateInput = $<HTMLInputElement>("#payment-date");
+  const rateBox = $<HTMLElement>("#payment-rate-box");
+  const rateText = $<HTMLElement>("#payment-rate-text");
+  const rateStale = $<HTMLElement>("#payment-rate-stale");
+  const rateInput = $<HTMLInputElement>("#payment-rate");
+  const rateError = $<HTMLElement>("#payment-rate-error");
+  const vesLine = $<HTMLElement>("#payment-ves");
+  const partialBox = $<HTMLElement>("#payment-partial-box");
+  const partialCheck = $<HTMLInputElement>("#payment-partial-check");
+  const partialFields = $<HTMLElement>("#payment-partial-fields");
+  const partialInput = $<HTMLInputElement>("#payment-partial");
+  const partialNote = $<HTMLElement>("#payment-partial-note");
+  const partialError = $<HTMLElement>("#payment-partial-error");
+  const dateError = $<HTMLElement>("#payment-date-error");
+  const reference = $<HTMLInputElement>("#payment-reference");
+  const submit = $<HTMLButtonElement>("#payment-submit");
+  const errorBox = $<HTMLElement>("#payment-error");
+  const currencyRadios = () => [...dialog.querySelectorAll<HTMLInputElement>('input[name="payment-currency"]')];
+  const currency = () => currencyRadios().find((radio) => radio.checked)?.value as "USD" | "VES";
+
+  let items: Item[] = [];
+  let officialValue: string | null = null;
+  let rateState: RateState = "cargando";
+  let source: "oficial" | "manual" = "oficial";
+  let resolveDialog: ((paid: boolean) => void) | null = null;
+  let opener: HTMLElement | null = null;
+  let lastTrigger: HTMLElement | null = null;
+  let sending = false;
+  let requestId = 0;
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      const trigger = (event.target as Element | null)?.closest<HTMLElement>("button, a");
+      if (trigger && !dialog.contains(trigger)) lastTrigger = trigger;
+    },
+    true,
+  );
+
+  const parseMoney = (text: string) => {
+    const clean = text.trim().replace(",", ".");
+    return /^\d+(\.\d{1,2})?$/.test(clean) ? clean : null;
+  };
+
+  function effectiveAmounts() {
+    if (partialCheck.checked && items.length === 1) {
+      const partial = parseMoney(partialInput.value);
+      return [partial ?? "0.00"];
+    }
+    return items.map((item) => item.amountUsd);
+  }
+
+  function currentRate(): string | null {
+    const clean = parseMoney(rateInput.value);
+    return clean && Number(clean) > 0 ? Number(clean).toFixed(2) : null;
+  }
+
+  function update() {
+    const amounts = effectiveAmounts();
+    const totalCents = amounts.reduce((sum, amount) => sum + toCents(amount), 0);
+    totalLine.textContent = `Total: ${formatMoney(fromCents(totalCents))}`;
+    const ves = currency() === "VES";
+    rateBox.hidden = !ves;
+    if (ves) {
+      const rate = currentRate();
+      itemsList.querySelectorAll<HTMLElement>("[data-ves]").forEach((node, index) => {
+        node.textContent = rate ? ` · ${formatBolivares(usdToVes(amounts[index] ?? "0.00", rate))}` : "";
+      });
+      vesLine.textContent = rate ? `Total en bolívares: ${formatBolivares(amounts.reduce((sum, amount) => sum + Number(usdToVes(amount, rate)), 0).toFixed(2))}` : "";
+    } else {
+      itemsList.querySelectorAll<HTMLElement>("[data-ves]").forEach((node) => (node.textContent = ""));
+    }
+    if (items.length === 1) {
+      const rest = toCents(items[0].amountUsd) - toCents(parseMoney(partialInput.value) ?? "0");
+      partialNote.textContent = `Mínimo $0,01 y máximo ${formatMoney(fromCents(toCents(items[0].amountUsd) - 1))}. El resto (${formatMoney(fromCents(Math.max(rest, 0)))}) quedará pendiente con la misma fecha.`;
+    }
+  }
+
+  function describeRate() {
+    const messages: Record<RateState, string> = {
+      cargando: "Obteniendo la tasa euro BCV…",
+      oficial: officialValue && source === "oficial" ? `Tasa euro BCV: ${formatEuroRate(officialValue)}` : "Tasa escrita a mano",
+      desactualizada: "Tasa escrita a mano",
+      sin_tasa: "No se pudo obtener la tasa oficial para esa fecha. Escríbela para continuar.",
+    };
+    rateText.textContent = source === "manual" && rateState !== "sin_tasa" ? "Tasa escrita a mano" : messages[rateState];
+    rateStale.hidden = rateState !== "desactualizada" || source === "manual";
+  }
+
+  async function loadRate() {
+    const id = ++requestId;
+    rateState = "cargando";
+    describeRate();
+    try {
+      const response = await fetch(`/api/admin/euro-rate?date=${dateInput.value}`);
+      const body = await response.json();
+      if (id !== requestId) return;
+      if (body.status === "ok" && body.rate) {
+        officialValue = body.rate.value;
+        rateState = body.stale ? "desactualizada" : "oficial";
+        source = "oficial";
+        rateText.textContent = `Tasa euro BCV del ${formatDate(body.rate.rateDate)}: ${formatEuroRate(body.rate.value)}`;
+        rateInput.value = body.rate.value;
+        rateStale.hidden = !body.stale;
+      } else {
+        officialValue = null;
+        rateState = "sin_tasa";
+        source = "manual";
+        rateInput.value = "";
+        describeRate();
+      }
+    } catch {
+      if (id !== requestId) return;
+      officialValue = null;
+      rateState = "sin_tasa";
+      source = "manual";
+      describeRate();
+    }
+    update();
+  }
+
+  rateInput.addEventListener("input", () => {
+    const value = currentRate();
+    source = officialValue !== null && value === officialValue ? "oficial" : "manual";
+    if (rateState !== "sin_tasa") {
+      rateText.textContent = source === "manual" ? "Tasa escrita a mano" : rateText.textContent;
+    }
+    update();
+  });
+  dateInput.addEventListener("change", () => {
+    if (currency() === "VES") void loadRate();
+  });
+  for (const radio of currencyRadios()) {
+    radio.addEventListener("change", () => {
+      if (currency() === "VES") void loadRate();
+      update();
+    });
+  }
+  partialCheck.addEventListener("change", () => {
+    partialFields.hidden = !partialCheck.checked;
+    if (partialCheck.checked) partialInput.focus();
+    update();
+  });
+  partialInput.addEventListener("input", update);
+
+  function showError(message: string, reload = false) {
+    errorBox.replaceChildren(Object.assign(document.createElement("p"), { textContent: message }));
+    if (reload) {
+      const button = Object.assign(document.createElement("button"), {
+        type: "button",
+        className: "min-h-[44px] rounded-lg border border-red-300 bg-white px-4 py-2 font-semibold",
+        textContent: "Recargar",
+      });
+      button.addEventListener("click", () => window.location.reload());
+      errorBox.append(button);
+    }
+    errorBox.hidden = false;
+    errorBox.focus();
+  }
+
+  function finish(paid: boolean) {
+    const done = resolveDialog;
+    resolveDialog = null;
+    done?.(paid);
+  }
+
+  dialog.addEventListener("close", () => {
+    opener?.focus();
+    finish(false);
+  });
+  $<HTMLButtonElement>("#payment-cancel").addEventListener("click", () => dialog.close());
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (sending) return;
+    errorBox.hidden = true;
+    dateError.textContent = rateError.textContent = partialError.textContent = "";
+    let invalid = false;
+    if (!dateInput.value || dateInput.value > (dialog.dataset.today ?? "")) {
+      dateError.textContent = "Escribe una fecha de pago que no sea posterior a hoy.";
+      invalid = true;
+    }
+    const payload: Record<string, unknown> = {
+      installmentIds: items.map((item) => item.id),
+      paidOn: dateInput.value,
+      currency: currency(),
+      reference: reference.value,
+    };
+    if (currency() === "VES") {
+      const value = currentRate();
+      if (source === "manual" || rateState === "sin_tasa") {
+        if (!value) {
+          rateError.textContent = "Escribe la tasa para continuar.";
+          invalid = true;
+        } else payload.rate = { source: "manual", value };
+      } else payload.rate = { source: "oficial" };
+    }
+    if (partialCheck.checked && items.length === 1) {
+      const partial = parseMoney(partialInput.value);
+      const max = toCents(items[0].amountUsd) - 1;
+      if (!partial || toCents(partial) < 1 || toCents(partial) > max) {
+        partialError.textContent = `Escribe un monto entre $0,01 y ${formatMoney(fromCents(max))}.`;
+        invalid = true;
+      } else payload.partialAmountUsd = partial;
+    }
+    if (invalid) return;
+
+    sending = true;
+    submit.disabled = true;
+    try {
+      const response = await fetch("/api/admin/financings/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": dialog.dataset.csrf ?? "" },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.ok) {
+        const done = resolveDialog;
+        resolveDialog = null;
+        dialog.close();
+        done?.(true);
+        return;
+      }
+      sending = false;
+      submit.disabled = false;
+      const fields: Record<string, string> = body?.error?.fields ?? {};
+      if (response.status === 409) {
+        if (fields.rate) {
+          rateState = "sin_tasa";
+          source = "manual";
+          describeRate();
+          rateError.textContent = fields.rate;
+          rateInput.focus();
+        } else showError(fields.installments ?? body?.error?.message ?? "Algunas cuotas ya estaban pagadas. Recarga la página.", true);
+        return;
+      }
+      if (fields.paidOn) dateError.textContent = fields.paidOn;
+      if (fields.partialAmountUsd) partialError.textContent = fields.partialAmountUsd;
+      if (fields.rate || fields["rate.value"]) rateError.textContent = fields.rate ?? fields["rate.value"];
+      if (!Object.keys(fields).length) showError(body?.error?.message ?? "No se pudo registrar el pago.");
+    } catch {
+      sending = false;
+      submit.disabled = false;
+      showError("No se pudo registrar el pago. Revisa tu conexión e inténtalo de nuevo.");
+    }
+  });
+
+  window.openPaymentDialog = (list) =>
+    new Promise<boolean>((resolve) => {
+      items = list;
+      resolveDialog = resolve;
+      const active = document.activeElement;
+      opener = active instanceof HTMLElement && active !== document.body ? active : lastTrigger;
+      sending = false;
+      submit.disabled = false;
+      errorBox.hidden = true;
+      itemsList.replaceChildren();
+      for (const item of items) {
+        const li = document.createElement("li");
+        li.append(`${item.client} · ${item.label} · ${formatMoney(item.amountUsd)}`);
+        li.append(Object.assign(document.createElement("span"), { className: "font-semibold" }));
+        li.lastElementChild!.setAttribute("data-ves", "");
+        itemsList.append(li);
+      }
+      dateInput.value = dialog.dataset.today ?? "";
+      reference.value = "";
+      partialCheck.checked = false;
+      partialFields.hidden = true;
+      partialInput.value = "";
+      partialBox.hidden = items.length !== 1;
+      dateError.textContent = rateError.textContent = partialError.textContent = "";
+      currencyRadios()[0].checked = true;
+      rateInput.value = "";
+      officialValue = null;
+      source = "oficial";
+      update();
+      dialog.showModal();
+      dateInput.focus();
+    });
+</script>

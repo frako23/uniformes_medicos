@@ -1,0 +1,90 @@
+---
+import AdminLayout from "../layout.astro";
+import ConfirmDialog from "../../../components/admin/ConfirmDialog.astro";
+import CongressForm from "../../../components/admin/CongressForm.astro";
+import { getCongressDetail } from "../../../server/congresses/service";
+import { db } from "../../../server/db";
+import { HttpError } from "../../../server/http/errors";
+import { parseRefParam } from "../../../server/http/params";
+import { loadReferenceValues, referenceOptions } from "../../../server/reference/values";
+import { formatDate, formatLongDateRange } from "../../../utils/dates";
+
+let congress;
+try {
+  congress = await getCongressDetail(parseRefParam(Astro.params.ref, "Congreso no encontrado."));
+} catch (error) {
+  if (error instanceof HttpError && error.status === 404) return new Response("Congreso no encontrado", { status: 404 });
+  throw error;
+}
+const editing = Astro.url.searchParams.get("editar") === "1";
+const specialties = editing ? referenceOptions(await loadReferenceValues(db()), "specialty") : [];
+const button = "inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900";
+const details: Array<[string, string | null]> = [
+  ["Fechas", `${formatDate(congress.startDate)} – ${formatDate(congress.endDate)} · ${congress.days} ${congress.days === 1 ? "día" : "días"}`],
+  ["Lugar", congress.venue],
+  ["Especialidad", congress.specialty],
+  ["Notas", congress.notes],
+];
+---
+<AdminLayout title={congress.name}>
+  <section class="space-y-6">
+    <a href="/admin/congresos" class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver a congresos</a>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 class="break-words text-3xl font-bold">{congress.name}</h1>
+        <p class="mt-1 text-slate-600">{formatLongDateRange(congress.startDate, congress.endDate)}</p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <a href={`/admin/congresos/${congress.ref}?editar=1`} class={button}>Editar</a>
+        <a href={`/admin/congresos?mes=${congress.startDate.slice(0, 7)}`} class={button}>Ver en el calendario</a>
+        <button type="button" id="delete-congress" data-ref={congress.ref} data-csrf={Astro.locals.csrfToken ?? ""} data-updated-at={congress.updatedAt} class={`${button} border-red-300 text-red-800`}>Eliminar</button>
+      </div>
+    </div>
+    <p id="delete-error" role="alert" hidden class="rounded-lg bg-red-50 p-3 text-sm text-red-800"></p>
+    {editing ? (
+      <div class="rounded-xl bg-white p-4 shadow-sm sm:p-6">
+        <CongressForm congress={congress} specialties={specialties} csrfToken={Astro.locals.csrfToken ?? ""} />
+      </div>
+    ) : (
+      <dl class="grid gap-4 rounded-xl bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6">
+        {details.map(([label, value]) => (
+          <div class={label === "Notas" ? "sm:col-span-2" : ""}>
+            <dt class="text-xs font-medium text-slate-600">{label}</dt>
+            <dd class="whitespace-pre-line break-words">{value ?? "—"}</dd>
+          </div>
+        ))}
+      </dl>
+    )}
+  </section>
+  <ConfirmDialog />
+</AdminLayout>
+
+<script>
+  const button = document.querySelector<HTMLButtonElement>("#delete-congress");
+  const errorBox = document.querySelector<HTMLElement>("#delete-error");
+  button?.addEventListener("click", async () => {
+    if (errorBox) errorBox.hidden = true;
+    const { confirmed } = await window.confirmAction({
+      title: "Eliminar congreso",
+      message: "Se eliminará este congreso. Esta acción no se puede deshacer.",
+      confirmLabel: "Eliminar",
+    });
+    if (!confirmed) return;
+    button.disabled = true;
+    const response = await fetch(`/api/admin/congresses/${button.dataset.ref}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "x-csrf-token": button.dataset.csrf ?? "" },
+      body: JSON.stringify({ expectedUpdatedAt: button.dataset.updatedAt }),
+    }).catch(() => null);
+    if (response?.status === 204) {
+      window.location.href = "/admin/congresos?eliminado=1";
+      return;
+    }
+    button.disabled = false;
+    const body = await response?.json().catch(() => ({}));
+    if (errorBox) {
+      errorBox.textContent = body?.error?.fields?.expectedUpdatedAt ?? body?.error?.message ?? "No se pudo eliminar el congreso.";
+      errorBox.hidden = false;
+    }
+  });
+</script>

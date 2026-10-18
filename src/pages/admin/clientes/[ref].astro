@@ -1,0 +1,140 @@
+---
+import AdminLayout from "../layout.astro";
+import ClientForm from "../../../components/admin/ClientForm.astro";
+import ConfirmDialog from "../../../components/admin/ConfirmDialog.astro";
+import { getClientDetail } from "../../../server/clients/service";
+import { db } from "../../../server/db";
+import { HttpError } from "../../../server/http/errors";
+import { parseRefParam } from "../../../server/http/params";
+import { loadReferenceValues, referenceOptions } from "../../../server/reference/values";
+import { formatDate } from "../../../utils/dates";
+import { formatMoney } from "../../../utils/money";
+
+let client;
+try {
+  client = await getClientDetail(parseRefParam(Astro.params.ref, "Cliente no encontrado."));
+} catch (error) {
+  if (error instanceof HttpError && error.status === 404) return new Response("Cliente no encontrado", { status: 404 });
+  throw error;
+}
+
+const reference = await loadReferenceValues(db());
+const options = {
+  size: referenceOptions(reference, "size"),
+  city: referenceOptions(reference, "city"),
+  hospital: referenceOptions(reference, "hospital"),
+  clinic: referenceOptions(reference, "clinic"),
+  specialty: referenceOptions(reference, "specialty"),
+};
+const editing = Astro.url.searchParams.get("editar") === "1";
+const saved = Astro.url.searchParams.get("guardado") === "1";
+const hasFinancings = client.financings.length > 0;
+const STATUS_LABELS = { al_dia: "Al día", con_vencidas: "Con cuotas vencidas", pagado: "Pagado", anulado: "Anulado" } as const;
+const details: Array<[string, string | null]> = [
+  ["Celular", client.phone],
+  ["Sexo", client.sex],
+  ["Talla", client.size],
+  ["Ciudad", client.city],
+  ["Hospital", client.hospital],
+  ["Clínica", client.clinic],
+  ["Especialidad", client.specialty],
+  ["Notas", client.notes],
+];
+const buttonClass = "inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900";
+---
+<AdminLayout title={client.name}>
+  <section class="space-y-6">
+    <a href="/admin/clientes" class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver a clientes</a>
+    <div role="status" aria-live="polite" id="client-status" class="sr-only">{saved ? "Cliente guardado" : ""}</div>
+    {saved && <p class="rounded-lg border border-green-300 bg-green-50 p-3 text-sm font-semibold text-green-900">Cliente guardado</p>}
+
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 class="break-words text-3xl font-bold">{client.name}</h1>
+        <p class="mt-1 text-slate-600">Cliente #{client.ref}</p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <a href={`/admin/clientes/${client.ref}?editar=1`} class={buttonClass}>Editar</a>
+        <a href={client.whatsappUrl} target="_blank" rel="noopener noreferrer" class={buttonClass}>Escribir por WhatsApp</a>
+        <a href={`/admin/pagos-financiados/nuevo?cliente=${client.ref}`} class={buttonClass}>Nuevo financiamiento</a>
+        <button type="button" id="delete-client" data-ref={client.ref} data-csrf={Astro.locals.csrfToken ?? ""} disabled={hasFinancings} class={`${buttonClass} border-red-300 text-red-800 disabled:cursor-not-allowed disabled:opacity-60`}>Eliminar</button>
+      </div>
+    </div>
+    {hasFinancings && <p id="delete-note" class="text-sm text-slate-700">No se puede eliminar porque tiene financiamientos</p>}
+    <p id="delete-error" role="alert" class="hidden rounded-lg bg-red-50 p-3 text-sm text-red-800"></p>
+
+    {editing ? (
+      <div class="rounded-xl bg-white p-4 shadow-sm sm:p-6">
+        <h2 class="mb-4 text-xl font-semibold">Editar cliente</h2>
+        <ClientForm client={client} options={options} csrfToken={Astro.locals.csrfToken ?? ""} />
+      </div>
+    ) : (
+      <dl class="grid gap-4 rounded-xl bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6">
+        {details.map(([label, value]) => (
+          <div class={label === "Notas" ? "sm:col-span-2" : ""}>
+            <dt class="text-xs font-medium text-slate-600">{label}</dt>
+            <dd class="whitespace-pre-line break-words">{value ?? "—"}</dd>
+          </div>
+        ))}
+        <div>
+          <dt class="text-xs font-medium text-slate-600">Saldo pendiente</dt>
+          <dd>{formatMoney(client.balanceUsd)}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium text-slate-600">Registrado el</dt>
+          <dd>{formatDate(client.createdAt.slice(0, 10))}</dd>
+        </div>
+      </dl>
+    )}
+
+    <section aria-labelledby="financings-title" class="space-y-3 rounded-xl bg-white p-4 shadow-sm sm:p-6">
+      <h2 id="financings-title" class="text-xl font-semibold">Financiamientos</h2>
+      {hasFinancings ? (
+        <ul class="space-y-3">
+          {client.financings.map((financing) => (
+            <li class="rounded-lg border border-slate-200 p-3 text-sm">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <a class="break-words font-semibold underline" href={`/admin/pagos-financiados/${financing.ref}`}>Financiamiento #{financing.ref} · {financing.description}</a>
+                <span class="rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-semibold">{STATUS_LABELS[financing.status]}</span>
+              </div>
+              <p class="mt-1 text-slate-600">Compra del {formatDate(financing.purchaseDate)} · Total {formatMoney(financing.totalUsd)} · Pagado {formatMoney(financing.paidUsd)} · Saldo {formatMoney(financing.balanceUsd)}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="text-slate-600">Sin financiamientos</p>
+      )}
+    </section>
+  </section>
+  <ConfirmDialog />
+</AdminLayout>
+
+<script>
+  const button = document.querySelector<HTMLButtonElement>("#delete-client");
+  const errorBox = document.querySelector<HTMLElement>("#delete-error");
+  button?.addEventListener("click", async () => {
+    if (button.disabled) return;
+    errorBox?.classList.add("hidden");
+    const { confirmed } = await window.confirmAction({
+      title: "Eliminar cliente",
+      message: "Se eliminará este cliente. Esta acción no se puede deshacer.",
+      confirmLabel: "Eliminar",
+    });
+    if (!confirmed) return;
+    button.disabled = true;
+    const response = await fetch(`/api/admin/clients/${button.dataset.ref}`, {
+      method: "DELETE",
+      headers: { "x-csrf-token": button.dataset.csrf ?? "" },
+    }).catch(() => null);
+    if (response?.status === 204) {
+      window.location.href = "/admin/clientes?eliminado=1";
+      return;
+    }
+    button.disabled = false;
+    const body = await response?.json().catch(() => ({}));
+    if (errorBox) {
+      errorBox.textContent = response?.status === 409 ? "No se puede eliminar porque tiene financiamientos" : (body?.error?.message ?? "No se pudo eliminar el cliente.");
+      errorBox.classList.remove("hidden");
+    }
+  });
+</script>

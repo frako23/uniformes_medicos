@@ -1,3 +1,5 @@
+import { normalizeKey } from "../../utils/text-keys";
+
 export const SHEET_INSTRUCTIONS = "Instrucciones";
 export const SHEET_INVENTORY = "Inventario";
 export const SHEET_LISTS = "Listas";
@@ -68,12 +70,7 @@ export function inventoryFileName(date: Date) {
 
 /** Recorta espacios, une los repetidos e ignora mayúsculas y tildes. */
 export function normalizeHeader(text: string) {
-  return text
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+  return normalizeKey(text);
 }
 
 /** Compara tallas sin distinguir mayúsculas ni espacios. */

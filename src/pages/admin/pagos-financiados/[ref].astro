@@ -1,0 +1,193 @@
+---
+import AdminLayout from "../layout.astro";
+import ConfirmDialog from "../../../components/admin/ConfirmDialog.astro";
+import PaymentDialog from "../../../components/admin/PaymentDialog.astro";
+import InstallmentTable from "../../../components/admin/InstallmentTable.astro";
+import { resolveEuroRate } from "../../../server/financing/euro-rates";
+import { getFinancingDetail } from "../../../server/financing/service";
+import { HttpError } from "../../../server/http/errors";
+import { parseRefParam } from "../../../server/http/params";
+import { formatDate, todayInCaracas } from "../../../utils/dates";
+import { formatMoney } from "../../../utils/money";
+
+const currentRate = (await resolveEuroRate(todayInCaracas())).rate;
+let financing;
+try {
+  financing = await getFinancingDetail(parseRefParam(Astro.params.ref, "Financiamiento no encontrado."));
+} catch (error) {
+  if (error instanceof HttpError && error.status === 404) return new Response("Financiamiento no encontrado", { status: 404 });
+  throw error;
+}
+
+const STATUS_LABELS = { al_dia: "Al día", con_vencidas: "Con cuotas vencidas", pagado: "Pagado", anulado: "Anulado" } as const;
+const FREQUENCY_LABELS = { semanal: "Semanal", quincenal: "Quincenal", mensual: "Mensual" } as const;
+const flash = Astro.url.searchParams.get("registrado") === "1" ? "Financiamiento registrado" : Astro.url.searchParams.get("pago") === "1" ? "Pago registrado" : Astro.url.searchParams.get("deshecho") === "1" ? "Pago deshecho" : Astro.url.searchParams.get("guardado") === "1" ? "Financiamiento guardado" : "";
+const annulled = financing.status === "anulado";
+const hasPayments = financing.installments.some((item) => item.state === "pagada");
+const csrfToken = Astro.locals.csrfToken ?? "";
+const buttonClass =
+  "inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-60";
+---
+<AdminLayout title={`Financiamiento #${financing.ref}`}>
+  <section class="space-y-6">
+    <a href="/admin/pagos-financiados" class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver a pagos financiados</a>
+    <div role="status" aria-live="polite" class="sr-only" id="financing-status">{flash}</div>
+    {flash && <p class="rounded-lg border border-green-300 bg-green-50 p-3 text-sm font-semibold text-green-900">{flash}</p>}
+
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="text-3xl font-bold">Financiamiento #{financing.ref}</h1>
+        <p class="mt-1 break-words text-slate-700">{financing.description}</p>
+        <p class="mt-1 text-sm text-slate-600">
+          Cliente: <a class="font-semibold underline" href={`/admin/clientes/${financing.client.ref}`}>{financing.client.name}</a>
+          · Compra del {formatDate(financing.purchaseDate)} · {FREQUENCY_LABELS[financing.frequency]}
+        </p>
+        <p class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-semibold">{STATUS_LABELS[financing.status]}</span>
+          {financing.origin === "carga_masiva" && <span class="text-sm text-slate-600">Registrado por carga masiva</span>}
+        </p>
+        {annulled && financing.annulmentReason && <p class="mt-2 text-sm text-slate-700">Motivo de la anulación: {financing.annulmentReason}</p>}
+      </div>
+      <div class="flex flex-wrap gap-3">
+        {annulled ? (
+          <button type="button" id="restore-financing" class={buttonClass}>Restaurar</button>
+        ) : (
+          <button type="button" id="annul-financing" class={buttonClass}>Anular</button>
+        )}
+        <button type="button" id="delete-financing" disabled={hasPayments} class={`${buttonClass} border-red-300 text-red-800`}>Eliminar</button>
+      </div>
+    </div>
+    {hasPayments && <p class="text-sm text-slate-700">Tiene pagos registrados: puedes anularlo</p>}
+    <div id="financing-error" hidden role="alert" tabindex="-1" class="space-y-2 rounded-lg bg-red-50 p-3 text-sm text-red-800"></div>
+
+    <dl class="grid grid-cols-3 gap-3 rounded-xl bg-white p-4 shadow-sm sm:p-6">
+      <div><dt class="text-xs font-medium text-slate-600">Total</dt><dd class="text-xl font-bold">{formatMoney(financing.totalUsd)}</dd></div>
+      <div><dt class="text-xs font-medium text-slate-600">Pagado</dt><dd class="text-xl font-bold">{formatMoney(financing.paidUsd)}</dd></div>
+      <div><dt class="text-xs font-medium text-slate-600">Saldo</dt><dd class="text-xl font-bold">{formatMoney(financing.balanceUsd)}</dd></div>
+    </dl>
+
+    <section aria-labelledby="schedule-title" class="space-y-3 rounded-xl bg-white p-4 shadow-sm sm:p-6">
+      <h2 id="schedule-title" class="text-xl font-semibold">Calendario de cuotas</h2>
+      <InstallmentTable financing={financing} csrfToken={csrfToken} rate={currentRate} />
+    </section>
+  </section>
+  <ConfirmDialog />
+  <PaymentDialog csrfToken={csrfToken} today={todayInCaracas()} />
+  <div id="financing-actions" data-ref={financing.ref} data-csrf={csrfToken} data-updated-at={financing.updatedAt} hidden></div>
+</AdminLayout>
+
+<script>
+  const actions = document.querySelector<HTMLElement>("#financing-actions");
+  const errorBox = document.querySelector<HTMLElement>("#financing-error");
+
+  function showError(message: string, reload = false) {
+    if (!errorBox) return;
+    errorBox.replaceChildren(Object.assign(document.createElement("p"), { textContent: message }));
+    if (reload) {
+      const button = Object.assign(document.createElement("button"), {
+        type: "button",
+        className: "min-h-[44px] rounded-lg border border-red-300 bg-white px-4 py-2 font-semibold",
+        textContent: "Recargar",
+      });
+      button.addEventListener("click", () => window.location.reload());
+      errorBox.append(button);
+    }
+    errorBox.hidden = false;
+    errorBox.focus();
+  }
+
+  async function send(path: string, method: string, body: Record<string, unknown>, button: HTMLButtonElement) {
+    if (!actions) return null;
+    button.disabled = true;
+    errorBox!.hidden = true;
+    let response: Response | null = null;
+    try {
+      response = await fetch(`/api/admin/financings/${actions.dataset.ref}${path}`, {
+        method,
+        headers: { "Content-Type": "application/json", "x-csrf-token": actions.dataset.csrf ?? "" },
+        body: JSON.stringify({ ...body, expectedUpdatedAt: actions.dataset.updatedAt }),
+      });
+    } catch {
+      showError("No se pudo completar la acción. Revisa tu conexión e inténtalo de nuevo.");
+    }
+    if (response && !response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      button.disabled = false;
+      if (response.status === 409) showError(payload?.error?.fields?.installments ?? "El financiamiento cambió; recarga la página.", !payload?.error?.fields?.installments);
+      else showError(payload?.error?.message ?? "No se pudo completar la acción.");
+      return null;
+    }
+    if (!response) button.disabled = false;
+    return response;
+  }
+
+  document.querySelectorAll<HTMLButtonElement>("button[data-pay]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const item = { id: button.dataset.id!, label: button.dataset.label!, client: button.dataset.client!, amountUsd: button.dataset.amount! };
+      if (await window.openPaymentDialog([item])) window.location.href = window.location.pathname + "?pago=1";
+    });
+  });
+
+  document.querySelectorAll<HTMLButtonElement>("button[data-undo]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const { confirmed } = await window.confirmAction({
+        title: "Deshacer pago",
+        message: "La cuota volverá a estar pendiente y se borrarán los datos de su pago.",
+        confirmLabel: "Deshacer pago",
+      });
+      if (!confirmed || !actions) return;
+      button.disabled = true;
+      errorBox!.hidden = true;
+      const response = await fetch(`/api/admin/financings/installments/${button.dataset.id}/undo-payment`, {
+        method: "POST",
+        headers: { "x-csrf-token": actions.dataset.csrf ?? "" },
+      }).catch(() => null);
+      if (response?.ok) {
+        window.location.href = window.location.pathname + "?deshecho=1";
+        return;
+      }
+      button.disabled = false;
+      const payload = await response?.json().catch(() => ({}));
+      showError(payload?.error?.fields?.installments ?? payload?.error?.message ?? "No se pudo deshacer el pago.", response?.status === 409);
+    });
+  });
+
+  document.querySelector<HTMLButtonElement>("#annul-financing")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    const { confirmed, reason } = await window.confirmAction({
+      title: "Anular financiamiento",
+      message: "Se deshabilitarán los pagos y la edición. Podrás restaurarlo después.",
+      confirmLabel: "Anular",
+      withReason: true,
+    });
+    if (!confirmed) return;
+    if (await send("/annul", "POST", { reason }, button)) window.location.href = window.location.pathname + "?guardado=1";
+  });
+
+  document.querySelector<HTMLButtonElement>("#restore-financing")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    const { confirmed } = await window.confirmAction({
+      title: "Restaurar financiamiento",
+      message: "El financiamiento volverá a su estado según sus cuotas.",
+      confirmLabel: "Restaurar",
+    });
+    if (!confirmed) return;
+    if (await send("/restore", "POST", {}, button)) window.location.href = window.location.pathname + "?guardado=1";
+  });
+
+  document.querySelector<HTMLButtonElement>("#delete-financing")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    if (button.disabled) return;
+    const { confirmed } = await window.confirmAction({
+      title: "Eliminar financiamiento",
+      message: "Se eliminará el financiamiento con todas sus cuotas. Esta acción no se puede deshacer.",
+      confirmLabel: "Eliminar",
+    });
+    if (!confirmed) return;
+    const response = await send("", "DELETE", {}, button);
+    if (response?.status === 204) {
+      const client = document.querySelector<HTMLAnchorElement>("a[href^='/admin/clientes/']");
+      window.location.href = client?.getAttribute("href") ?? "/admin/clientes";
+    }
+  });
+</script>

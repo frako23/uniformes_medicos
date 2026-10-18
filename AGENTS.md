@@ -13,6 +13,7 @@ Catálogo web de uniformes médicos con vitrina pública, bolsa/WhatsApp y panel
 - Zod valida entradas. La autenticación usa sesiones server-side revocables, cookies HttpOnly/Secure/SameSite y controles Origin/CSRF; no hay registro público ni secretos en el cliente.
 - Strapi solo es fuente temporal para la migración: los scripts deben ser paginados, reanudables, idempotentes y generar verificación antes del corte.
 - Las hojas de cálculo se leen con `read-excel-file` y se generan con `write-excel-file` más `@onparallel/write-excel-file-data-validation`, fijado en la versión exacta `1.0.2` (se revisa su código antes de actualizarla). Los archivos subidos nunca se almacenan; la vista previa de la carga masiva usa un token firmado ligado a la sesión.
+- El motor de carga masiva compartido vive en `src/server/bulk/` (inventario, clientes, financiamientos y congresos lo reutilizan). La tasa euro del BCV se obtiene de DolarAPI, la única llamada externa de los pagos financiados, con tiempo máximo de 3 s, validación del cuerpo y respaldo manual.
 - Vitest cubre unitarias/integración y Playwright las pruebas de navegador; `astro check` forma parte del build.
 
 ## Desarrollo local
@@ -43,6 +44,9 @@ Para migración controlada: `npm run migrate:strapi -- --dry-run` y luego `npm r
 - Preservar los identificadores `legacy_id`/`legacy_document_id` y las URLs públicas existentes; no hacer llamadas runtime a Strapi.
 - Proteger cada ruta `/admin/**` y `/api/admin/**` en servidor; validar mutaciones y entradas, redactor errores/secrets y no procesar pagos ni ventas confirmadas.
 - La carga masiva de inventario es de todo o nada y nunca elimina productos, tallas ni fotos; la validación del servidor es la única fuente de verdad.
+- Los montos en bolívares se muestran con `formatBolivares` y la tasa con `formatEuroRate` (`src/utils/money.ts`).
+- Los datos de clientes son personales: no se escriben en los registros del servidor (solo códigos, conteos y duraciones) y solo el panel importa `src/server/clients`, `financing`, `congresses` y `reference`.
+- Las cargas masivas nunca eliminan registros.
 - Mostrar todo monto con `formatMoney` (`src/utils/money.ts`): `$` delante, punto de miles, coma decimal y 2 decimales (`$1.234,50`).
 - Añadir migraciones versionadas y pruebas para cambios de esquema o reglas críticas; conservar estados de carga, vacío y error, accesibilidad y responsive.
 

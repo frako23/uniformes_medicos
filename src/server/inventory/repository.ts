@@ -1,11 +1,12 @@
 import { inArray, isNull, sql, count } from "drizzle-orm";
 import { productImages, productVariants, products } from "../../db/schema";
 import { ensureProductLegacyIdSequence } from "../catalog/admin-products";
-import { withTransaction, type DbOrTransaction, type Transaction } from "../db";
+import { withBulkLock, chunk as bulkChunk, pgErrorCode as bulkPgErrorCode, BULK_LOCK_KEYS } from "../bulk/transaction";
+import type { DbOrTransaction, Transaction } from "../db";
 import { createSnapshot, type CatalogSnapshot, type CreateWrite, type SnapshotProduct, type UpdateWrite } from "./changes";
 
 /** Clave fija del bloqueo consultivo que serializa las cargas masivas. */
-export const INVENTORY_LOCK_KEY = 7_301_003;
+export const INVENTORY_LOCK_KEY = BULK_LOCK_KEYS.inventory;
 export const WRITE_BATCH_SIZE = 1_000;
 
 export async function loadCatalogSnapshot(source: DbOrTransaction): Promise<CatalogSnapshot> {
@@ -56,10 +57,7 @@ export async function withInventoryLock<T>(
   options: { referencedLegacyIds: number[]; lockTimeoutMs?: number },
   callback: (transaction: Transaction, snapshot: CatalogSnapshot) => Promise<T>,
 ): Promise<T> {
-  const lockTimeoutMs = Math.max(1, Math.floor(options.lockTimeoutMs ?? 10_000));
-  return withTransaction(async (transaction) => {
-    await transaction.execute(sql.raw(`SET LOCAL lock_timeout = '${lockTimeoutMs}ms'`));
-    await transaction.execute(sql`SELECT pg_advisory_xact_lock(${INVENTORY_LOCK_KEY})`);
+  return withBulkLock({ lockKey: INVENTORY_LOCK_KEY, lockTimeoutMs: options.lockTimeoutMs }, async (transaction) => {
     if (options.referencedLegacyIds.length) {
       const locked = await transaction
         .select({ id: products.id })
@@ -79,11 +77,7 @@ export async function withInventoryLock<T>(
   });
 }
 
-function chunk<T>(items: T[], size = WRITE_BATCH_SIZE) {
-  const batches: T[][] = [];
-  for (let index = 0; index < items.length; index += size) batches.push(items.slice(index, index + size));
-  return batches;
-}
+const chunk = bulkChunk;
 
 async function upsertVariants(
   transaction: Transaction,
@@ -197,13 +191,4 @@ export async function insertNewProducts(
   return inserted;
 }
 
-/** Código SQLSTATE de un error de PostgreSQL, también cuando Drizzle lo envuelve. */
-export function pgErrorCode(error: unknown): string | undefined {
-  let current: unknown = error;
-  for (let depth = 0; depth < 4 && current && typeof current === "object"; depth += 1) {
-    const code = (current as { code?: unknown }).code;
-    if (typeof code === "string" && /^[0-9A-Z]{5}$/.test(code)) return code;
-    current = (current as { cause?: unknown }).cause;
-  }
-  return undefined;
-}
+export const pgErrorCode = bulkPgErrorCode;

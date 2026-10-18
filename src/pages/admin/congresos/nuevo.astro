@@ -1,0 +1,20 @@
+---
+import AdminLayout from "../layout.astro";
+import CongressForm from "../../../components/admin/CongressForm.astro";
+import { db } from "../../../server/db";
+import { loadReferenceValues, referenceOptions } from "../../../server/reference/values";
+import { isValidIsoDate } from "../../../utils/dates";
+
+const requested = Astro.url.searchParams.get("desde") ?? "";
+const startDate = isValidIsoDate(requested) ? requested : "";
+const specialties = referenceOptions(await loadReferenceValues(db()), "specialty");
+---
+<AdminLayout title="Nuevo congreso">
+  <section class="space-y-6">
+    <a href="/admin/congresos" class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver a congresos</a>
+    <h1 class="text-3xl font-bold">Nuevo congreso</h1>
+    <div class="rounded-xl bg-white p-4 shadow-sm sm:p-6">
+      <CongressForm specialties={specialties} csrfToken={Astro.locals.csrfToken ?? ""} startDate={startDate} />
+    </div>
+  </section>
+</AdminLayout>

@@ -1,0 +1,141 @@
+---
+import type { CongressDetail } from "../../server/congresses/service";
+import { CONGRESS_LIMITS } from "../../server/validation/congresses";
+import SuggestInput from "./SuggestInput.astro";
+
+interface Props {
+  congress?: CongressDetail;
+  specialties: string[];
+  csrfToken: string;
+  /** Fecha de inicio propuesta (AAAA-MM-DD), p. ej. el día elegido en el calendario. */
+  startDate?: string;
+}
+
+const { congress, specialties, csrfToken, startDate = "" } = Astro.props;
+const input = "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2";
+---
+<form
+  id="congress-form"
+  novalidate
+  data-csrf={csrfToken}
+  data-endpoint={congress ? `/api/admin/congresses/${congress.ref}` : "/api/admin/congresses"}
+  data-method={congress ? "PATCH" : "POST"}
+  data-updated-at={congress?.updatedAt ?? ""}
+  class="space-y-6"
+>
+  <div id="congress-form-error" hidden role="alert" tabindex="-1" class="space-y-2 rounded-lg bg-red-50 p-3 text-sm text-red-800"></div>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div class="sm:col-span-2">
+      <label for="field-name" class="text-sm font-medium">Nombre <span aria-hidden="true">*</span></label>
+      <input id="field-name" name="name" type="text" required maxlength={CONGRESS_LIMITS.name} value={congress?.name ?? ""} class={input} />
+      <div id="field-name-error"></div>
+    </div>
+    <div>
+      <label for="field-startDate" class="text-sm font-medium">Desde <span aria-hidden="true">*</span></label>
+      <input id="field-startDate" name="startDate" type="date" required value={congress?.startDate ?? startDate} class={input} />
+      <div id="field-startDate-error"></div>
+    </div>
+    <div>
+      <label for="field-endDate" class="text-sm font-medium">Hasta <span aria-hidden="true">*</span></label>
+      <input id="field-endDate" name="endDate" type="date" required value={congress?.endDate ?? startDate} class={input} />
+      <div id="field-endDate-error"></div>
+    </div>
+    <div>
+      <label for="field-venue" class="text-sm font-medium">Lugar</label>
+      <input id="field-venue" name="venue" type="text" maxlength={CONGRESS_LIMITS.venue} value={congress?.venue ?? ""} class={input} />
+      <div id="field-venue-error"></div>
+    </div>
+    <SuggestInput name="specialty" label="Especialidad" value={congress?.specialty} options={specialties} maxLength={CONGRESS_LIMITS.specialty} />
+  </div>
+  <div>
+    <label for="field-notes" class="text-sm font-medium">Notas</label>
+    <textarea id="field-notes" name="notes" rows="4" maxlength={CONGRESS_LIMITS.notes} class={input}>{congress?.notes ?? ""}</textarea>
+    <div id="field-notes-error"></div>
+  </div>
+  <div class="flex flex-wrap items-center gap-3">
+    <button type="submit" class="min-h-[44px] rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Guardar congreso</button>
+    <a href={congress ? `/admin/congresos/${congress.ref}` : "/admin/congresos"} class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-3 font-semibold hover:bg-slate-50">Cancelar</a>
+  </div>
+</form>
+<script>
+  const form = document.querySelector<HTMLFormElement>("#congress-form");
+  const formError = document.querySelector<HTMLElement>("#congress-form-error");
+  const start = document.querySelector<HTMLInputElement>("#field-startDate");
+  const end = document.querySelector<HTMLInputElement>("#field-endDate");
+  const FIELDS = ["name", "startDate", "endDate", "venue", "specialty", "notes"];
+
+  // Hasta toma el valor de Desde si estaba vacía o era anterior.
+  start?.addEventListener("change", () => {
+    if (end && start.value && (!end.value || end.value < start.value)) end.value = start.value;
+  });
+
+  function clearErrors() {
+    if (formError) formError.hidden = true;
+    form?.querySelectorAll<HTMLElement>("[id$='-error']").forEach((box) => {
+      if (box.id !== "congress-form-error") box.replaceChildren();
+    });
+    form?.querySelectorAll("[aria-invalid]").forEach((field) => field.removeAttribute("aria-invalid"));
+  }
+
+  function showFieldError(name: string, message: string) {
+    const box = form?.querySelector<HTMLElement>(`#field-${name}-error`);
+    if (!box) return false;
+    box.replaceChildren(Object.assign(document.createElement("p"), { className: "mt-1 text-sm text-red-700", textContent: message }));
+    box.setAttribute("role", "alert");
+    form?.querySelector(`#field-${name}`)?.setAttribute("aria-invalid", "true");
+    return true;
+  }
+
+  function showFormError(message: string, reload = false) {
+    if (!formError) return;
+    formError.replaceChildren(Object.assign(document.createElement("p"), { textContent: message }));
+    if (reload) {
+      const button = Object.assign(document.createElement("button"), {
+        type: "button",
+        className: "min-h-[44px] rounded-lg border border-red-300 bg-white px-4 py-2 font-semibold",
+        textContent: "Recargar",
+      });
+      button.addEventListener("click", () => window.location.reload());
+      formError.append(button);
+    }
+    formError.hidden = false;
+    formError.focus();
+  }
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (!submit || submit.disabled) return;
+    clearErrors();
+    const data = new FormData(form);
+    const payload: Record<string, unknown> = {};
+    for (const field of FIELDS) payload[field] = String(data.get(field) ?? "");
+    if (form.dataset.updatedAt) payload.expectedUpdatedAt = form.dataset.updatedAt;
+    submit.disabled = true;
+    let response: Response;
+    try {
+      response = await fetch(form.dataset.endpoint ?? "", {
+        method: form.dataset.method ?? "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": form.dataset.csrf ?? "" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      submit.disabled = false;
+      showFormError("No se pudo guardar el congreso. Revisa tu conexión e inténtalo de nuevo.");
+      return;
+    }
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) {
+      window.location.href = `/admin/congresos?mes=${String(body.data.startDate).slice(0, 7)}&guardado=1`;
+      return;
+    }
+    submit.disabled = false;
+    const fields: Record<string, string> = body?.error?.fields ?? {};
+    if (response.status === 401) return showFormError("Tu sesión expiró. Inicia sesión de nuevo para guardar el congreso.");
+    if (fields.expectedUpdatedAt) return showFormError(fields.expectedUpdatedAt, true);
+    let first: string | null = null;
+    for (const [name, message] of Object.entries(fields)) if (showFieldError(name, message)) first ??= name;
+    if (first) form.querySelector<HTMLElement>(`#field-${first}`)?.focus();
+    else showFormError(body?.error?.message ?? "No se pudo guardar el congreso.");
+  });
+</script>

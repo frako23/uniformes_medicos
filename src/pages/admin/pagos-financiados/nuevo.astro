@@ -1,0 +1,31 @@
+---
+import AdminLayout from "../layout.astro";
+import ConfirmDialog from "../../../components/admin/ConfirmDialog.astro";
+import FinancingForm from "../../../components/admin/FinancingForm.astro";
+import { getClientByRef } from "../../../server/clients/repository";
+import { db } from "../../../server/db";
+import { parseRefParam } from "../../../server/http/params";
+import { todayInCaracas } from "../../../utils/dates";
+import { formatPhone } from "../../../utils/phone";
+
+let client = null;
+const requested = Astro.url.searchParams.get("cliente");
+if (requested) {
+  try {
+    const found = await getClientByRef(db(), parseRefParam(requested));
+    if (found) client = { ref: found.ref, name: found.name, phone: formatPhone(found.phoneE164) };
+  } catch {
+    client = null;
+  }
+}
+---
+<AdminLayout title="Nuevo financiamiento">
+  <section class="space-y-6">
+    <a href={client ? `/admin/clientes/${client.ref}` : "/admin/pagos-financiados"} class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver</a>
+    <h1 class="text-3xl font-bold">Nuevo financiamiento</h1>
+    <div class="rounded-xl bg-white p-4 shadow-sm sm:p-6">
+      <FinancingForm csrfToken={Astro.locals.csrfToken ?? ""} today={todayInCaracas()} client={client} />
+    </div>
+  </section>
+  <ConfirmDialog />
+</AdminLayout>

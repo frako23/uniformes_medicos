@@ -1,0 +1,181 @@
+---
+import type { ClientDetail } from "../../server/clients/service";
+import { CLIENT_LIMITS } from "../../server/validation/clients";
+import SuggestInput from "./SuggestInput.astro";
+
+interface Props {
+  client?: ClientDetail;
+  options: { size: string[]; city: string[]; hospital: string[]; clinic: string[]; specialty: string[] };
+  csrfToken: string;
+}
+
+const { client, options, csrfToken } = Astro.props;
+const endpoint = client ? `/api/admin/clients/${client.ref}` : "/api/admin/clients";
+const method = client ? "PATCH" : "POST";
+const inputClass = "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2";
+---
+<form
+  id="client-form"
+  novalidate
+  data-endpoint={endpoint}
+  data-method={method}
+  data-csrf={csrfToken}
+  data-updated-at={client?.updatedAt ?? ""}
+  class="space-y-6"
+>
+  <div id="client-form-error" class="hidden space-y-2 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert" tabindex="-1"></div>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div class="min-w-0">
+      <label for="field-name" class="text-sm font-medium">Nombre <span aria-hidden="true">*</span></label>
+      <input id="field-name" name="name" type="text" required maxlength={CLIENT_LIMITS.name} value={client?.name ?? ""} autocomplete="off" aria-describedby="field-name-error" class={inputClass} />
+      <div id="field-name-error" data-error-for="name"></div>
+    </div>
+    <div class="min-w-0">
+      <label for="field-phone" class="text-sm font-medium">Celular <span aria-hidden="true">*</span></label>
+      <input id="field-phone" name="phone" type="tel" inputmode="tel" required value={client?.phone ?? ""} autocomplete="off" aria-describedby="field-phone-hint field-phone-error" class={inputClass} />
+      <p id="field-phone-hint" class="mt-1 text-xs text-slate-600">Ej.: 0414-123-4567. Otro país: +57 300…</p>
+      <div id="field-phone-error" data-error-for="phone"></div>
+    </div>
+    <div class="min-w-0">
+      <label for="field-sex" class="text-sm font-medium">Sexo</label>
+      <select id="field-sex" name="sex" aria-describedby="field-sex-error" class={inputClass}>
+        <option value="" selected={!client?.sex}>Sin indicar</option>
+        <option value="Mujer" selected={client?.sex === "Mujer"}>Mujer</option>
+        <option value="Hombre" selected={client?.sex === "Hombre"}>Hombre</option>
+      </select>
+      <div id="field-sex-error" data-error-for="sex"></div>
+    </div>
+    <SuggestInput name="size" label="Talla" value={client?.size} options={options.size} maxLength={CLIENT_LIMITS.size} />
+    <SuggestInput name="city" label="Ciudad" value={client?.city} options={options.city} maxLength={CLIENT_LIMITS.city} />
+    <SuggestInput name="hospital" label="Hospital" value={client?.hospital} options={options.hospital} maxLength={CLIENT_LIMITS.hospital} />
+    <SuggestInput name="clinic" label="Clínica" value={client?.clinic} options={options.clinic} maxLength={CLIENT_LIMITS.clinic} />
+    <SuggestInput name="specialty" label="Especialidad" value={client?.specialty} options={options.specialty} maxLength={CLIENT_LIMITS.specialty} />
+  </div>
+  <div class="min-w-0">
+    <label for="field-notes" class="text-sm font-medium">Notas</label>
+    <textarea id="field-notes" name="notes" rows="4" maxlength={CLIENT_LIMITS.notes} aria-describedby="field-notes-counter field-notes-error" class={inputClass}>{client?.notes ?? ""}</textarea>
+    <p id="field-notes-counter" class="mt-1 text-xs text-slate-600" aria-live="off"><span id="notes-count">0</span>/{CLIENT_LIMITS.notes} caracteres</p>
+    <div id="field-notes-error" data-error-for="notes"></div>
+  </div>
+  <div class="flex flex-wrap items-center gap-3">
+    <button type="submit" class="min-h-[44px] rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Guardar cliente</button>
+    <a href={client ? `/admin/clientes/${client.ref}` : "/admin/clientes"} class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-3 font-semibold hover:bg-slate-50">Cancelar</a>
+  </div>
+</form>
+<script>
+  const form = document.querySelector<HTMLFormElement>("#client-form");
+  const formError = document.querySelector<HTMLElement>("#client-form-error");
+  const notes = document.querySelector<HTMLTextAreaElement>("#field-notes");
+  const notesCount = document.querySelector<HTMLElement>("#notes-count");
+  const FIELDS = ["name", "phone", "sex", "size", "city", "hospital", "clinic", "specialty", "notes"];
+
+  const updateCount = () => {
+    if (notes && notesCount) notesCount.textContent = String(notes.value.length);
+  };
+  notes?.addEventListener("input", updateCount);
+  updateCount();
+
+  function clearErrors() {
+    formError?.classList.add("hidden");
+    formError?.replaceChildren();
+    form?.querySelectorAll<HTMLElement>("[data-error-for], [id$='-error']").forEach((box) => {
+      if (box.id === "client-form-error") return;
+      box.replaceChildren();
+    });
+    form?.querySelectorAll<HTMLElement>("[aria-invalid]").forEach((field) => field.removeAttribute("aria-invalid"));
+  }
+
+  function fieldBox(name: string) {
+    return form?.querySelector<HTMLElement>(`#field-${name}-error`) ?? null;
+  }
+
+  function showFieldError(name: string, message: string, link?: { href: string; text: string }) {
+    const box = fieldBox(name);
+    const input = form?.querySelector<HTMLElement>(`#field-${name}`);
+    if (!box) return false;
+    const text = document.createElement("p");
+    text.className = "mt-1 text-sm text-red-700";
+    text.setAttribute("role", "alert");
+    text.textContent = message;
+    if (link) {
+      text.append(" ");
+      const anchor = document.createElement("a");
+      anchor.href = link.href;
+      anchor.className = "font-semibold underline";
+      anchor.textContent = link.text;
+      text.append(anchor);
+    }
+    box.replaceChildren(text);
+    input?.setAttribute("aria-invalid", "true");
+    return true;
+  }
+
+  function showFormError(message: string, reload = false) {
+    if (!formError) return;
+    formError.replaceChildren();
+    const text = document.createElement("p");
+    text.textContent = message;
+    formError.append(text);
+    if (reload) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "min-h-[44px] rounded-lg border border-red-300 bg-white px-4 py-2 font-semibold";
+      button.textContent = "Recargar";
+      button.addEventListener("click", () => window.location.reload());
+      formError.append(button);
+    }
+    formError.classList.remove("hidden");
+    formError.focus();
+  }
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (!submit || submit.disabled) return;
+    clearErrors();
+    const data = new FormData(form);
+    const payload: Record<string, unknown> = {};
+    for (const field of FIELDS) payload[field] = String(data.get(field) ?? "");
+    if (form.dataset.updatedAt) payload.expectedUpdatedAt = form.dataset.updatedAt;
+
+    submit.disabled = true;
+    let response: Response;
+    try {
+      response = await fetch(form.dataset.endpoint ?? "/api/admin/clients", {
+        method: form.dataset.method ?? "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": form.dataset.csrf ?? "" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      submit.disabled = false;
+      showFormError("No se pudo guardar el cliente. Revisa tu conexión e inténtalo de nuevo.");
+      return;
+    }
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) {
+      window.location.href = `/admin/clientes/${body.data.ref}?guardado=1`;
+      return;
+    }
+    submit.disabled = false;
+    const fields: Record<string, string> = body?.error?.fields ?? {};
+    if (response.status === 401) {
+      showFormError("Tu sesión expiró. Inicia sesión de nuevo para guardar el cliente.");
+      return;
+    }
+    if (fields.expectedUpdatedAt) {
+      showFormError(fields.expectedUpdatedAt, true);
+      return;
+    }
+    let first: string | null = null;
+    for (const [name, message] of Object.entries(fields)) {
+      if (name === "phoneOwnerRef") continue;
+      const link = name === "phone" && fields.phoneOwnerRef ? { href: `/admin/clientes/${fields.phoneOwnerRef}`, text: "Ver ficha" } : undefined;
+      if (showFieldError(name, message, link)) first ??= name;
+    }
+    if (first) {
+      form.querySelector<HTMLElement>(`#field-${first}`)?.focus();
+    } else {
+      showFormError(body?.error?.message ?? "No se pudo guardar el cliente.");
+    }
+  });
+</script>

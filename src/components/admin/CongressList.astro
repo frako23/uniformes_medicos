@@ -1,0 +1,44 @@
+---
+import type { CongressDetail } from "../../server/congresses/service";
+import { formatDate } from "../../utils/dates";
+
+interface Props {
+  upcoming: CongressDetail[];
+  past?: CongressDetail[];
+  /** Título de la lista principal. */
+  title?: string;
+}
+
+const { upcoming, past = [], title = "Próximos congresos" } = Astro.props;
+const days = (count: number) => `${count} ${count === 1 ? "día" : "días"}`;
+---
+<section aria-labelledby="congress-list-title" class="space-y-4">
+  <h2 id="congress-list-title" class="text-xl font-semibold">{title}</h2>
+  {upcoming.length === 0 ? (
+    <p class="rounded-xl bg-white p-4 text-slate-600">No hay congresos próximos.</p>
+  ) : (
+    <ul class="space-y-3">
+      {upcoming.map((item) => (
+        <li class="rounded-xl bg-white p-4 text-sm shadow-sm">
+          <a class="break-words text-base font-semibold underline" href={`/admin/congresos/${item.ref}`}>{item.name}</a>
+          <p>{formatDate(item.startDate)} – {formatDate(item.endDate)} · {days(item.days)}</p>
+          {(item.venue || item.specialty) && <p class="text-slate-600">{[item.venue, item.specialty].filter(Boolean).join(" · ")}</p>}
+        </li>
+      ))}
+    </ul>
+  )}
+  {past.length > 0 && (
+    <details class="rounded-xl bg-white p-4 shadow-sm">
+      <summary class="min-h-[44px] cursor-pointer font-semibold">Congresos pasados ({past.length})</summary>
+      <ul class="mt-3 space-y-3">
+        {past.map((item) => (
+          <li class="text-sm">
+            <a class="break-words font-semibold underline" href={`/admin/congresos/${item.ref}`}>{item.name}</a>
+            <p>{formatDate(item.startDate)} – {formatDate(item.endDate)} · {days(item.days)}</p>
+            {(item.venue || item.specialty) && <p class="text-slate-600">{[item.venue, item.specialty].filter(Boolean).join(" · ")}</p>}
+          </li>
+        ))}
+      </ul>
+    </details>
+  )}
+</section>

@@ -54,6 +54,13 @@ PUBLIC_SITE_URL=http://localhost:4321
 | `/admin/login` | Inicio de sesión del propietario. |
 | `/admin/productos` | Gestión de productos, stock e imágenes. |
 | `/admin/productos/carga-masiva` | Carga y edición masiva de inventario con plantilla de Excel. |
+| `/admin/clientes` | Clientes: búsqueda, filtros, ficha, edición y eliminación protegida. |
+| `/admin/clientes/carga-masiva` | Importación y corrección masiva de clientes (acepta la hoja «Medicos»). |
+| `/admin/pagos-financiados` | Cuotas por cobrar, resumen, registro de pagos en dólares o bolívares y recordatorios por WhatsApp. |
+| `/admin/pagos-financiados/nuevo` | Registro de un financiamiento con su calendario de cuotas editable. |
+| `/admin/pagos-financiados/carga-masiva` | Carga masiva de financiamientos, con cuotas ya pagadas. |
+| `/admin/congresos` | Calendario mensual y lista de congresos. |
+| `/admin/congresos/carga-masiva` | Carga y corrección masiva de congresos (acepta la pestaña «Eventos»). |
 | `POST /api/cart-details` | Resuelve IDs numéricos contra PostgreSQL. |
 
 ## Comandos

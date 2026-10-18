@@ -1,10 +1,19 @@
 ---
 import AdminLayout from "./layout.astro";
+import { ADMIN_NAV_ITEMS, summarySentence } from "../../components/admin/nav-items";
+
+const sections = ADMIN_NAV_ITEMS.filter((item) => item.summaryLabel);
 ---
 <AdminLayout title="Inicio">
   <section class="space-y-4">
     <h1 class="text-3xl font-bold">Bienvenida</h1>
-    <p class="text-slate-600">Gestiona productos, imágenes y existencias desde este panel.</p>
-    <a href="/admin/productos" class="inline-flex rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">Administrar productos</a>
+    <p class="text-slate-600">{summarySentence()}</p>
+    <ul class="flex flex-wrap gap-3">
+      {sections.map((item) => (
+        <li>
+          <a href={item.href} class="inline-flex min-h-[44px] items-center rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">{item.label}</a>
+        </li>
+      ))}
+    </ul>
   </section>
 </AdminLayout>

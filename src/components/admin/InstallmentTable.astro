@@ -1,0 +1,343 @@
+---
+import type { FinancingDetail } from "../../server/financing/service";
+import { formatDate } from "../../utils/dates";
+import { formatBolivares, formatEuroRate, formatMoney } from "../../utils/money";
+import { buildInstallmentReminder } from "../../utils/whatsapp";
+
+interface Props {
+  financing: FinancingDetail;
+  csrfToken: string;
+  /** Tasa oficial más reciente, para el equivalente en bolívares del recordatorio. */
+  rate?: { value: string; rateDate: string } | null;
+}
+
+const { financing, csrfToken, rate = null } = Astro.props;
+const reminderUrl = (item: FinancingDetail["installments"][number]) =>
+  buildInstallmentReminder({
+    phoneE164: financing.client.phoneE164,
+    clientName: financing.client.name,
+    description: financing.description,
+    label: item.label,
+    dueDate: item.dueDate,
+    state: item.state,
+    amountUsd: item.amountUsd,
+    rate,
+  }).url;
+const annulled = financing.status === "anulado";
+const pending = financing.installments.filter((item) => item.state !== "pagada");
+const pendingRows = pending.map((item) => ({ id: item.id, dueDate: item.dueDate, amountText: item.amountUsd }));
+
+function stateText(item: FinancingDetail["installments"][number]) {
+  if (item.state === "vencida") return `Vencida hace ${item.daysOverdue} ${item.daysOverdue === 1 ? "día" : "días"}`;
+  if (item.state === "vence_hoy") return "Vence hoy";
+  if (item.state === "por_vencer") return "Por vencer";
+  return item.payment?.origin === "carga_masiva" ? "Pagada (registrada por carga masiva)" : "Pagada";
+}
+
+function paymentText(item: FinancingDetail["installments"][number]) {
+  const payment = item.payment;
+  if (!payment || payment.origin === "carga_masiva") return null;
+  const parts = [payment.paidOn ? `Pagada el ${formatDate(payment.paidOn)}` : null];
+  if (payment.currency === "USD") parts.push("en dólares");
+  if (payment.currency === "VES") {
+    parts.push("en bolívares");
+    if (payment.rate) {
+      const origin = payment.rate.source === "manual" ? "escrita a mano" : `del ${formatDate(payment.rate.rateDate ?? "")}`;
+      parts.push(`tasa ${formatEuroRate(payment.rate.value)} (${origin})`);
+    }
+    if (payment.amountVes) parts.push(formatBolivares(payment.amountVes));
+  }
+  if (payment.reference) parts.push(`ref. ${payment.reference}`);
+  return parts.filter(Boolean).join(" · ");
+}
+
+const stateClass = (state: string) =>
+  state === "vencida"
+    ? "border-red-300 bg-red-50 text-red-800"
+    : state === "pagada"
+      ? "border-green-300 bg-green-50 text-green-900"
+      : "border-slate-300 bg-slate-50 text-slate-800";
+const buttonClass =
+  "inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-60";
+---
+<div
+  id="installment-table"
+  data-ref={financing.ref}
+  data-csrf={csrfToken}
+  data-updated-at={financing.updatedAt}
+  data-frequency={financing.frequency}
+  data-purchase-date={financing.purchaseDate}
+  data-paid-cents={Math.round(Number(financing.paidUsd) * 100)}
+  data-pending={JSON.stringify(pendingRows)}
+  class="space-y-4"
+>
+  <div id="installments-view" class="space-y-3">
+    <div class="hidden overflow-x-auto md:block">
+      <table class="min-w-full text-left text-sm">
+        <thead class="border-b border-slate-200 text-slate-500">
+          <tr><th class="px-3 py-2">Cuota</th><th class="px-3 py-2">Vencimiento</th><th class="px-3 py-2">Monto</th><th class="px-3 py-2">Estado</th><th class="px-3 py-2"><span class="sr-only">Acciones</span></th></tr>
+        </thead>
+        <tbody>
+          {financing.installments.map((item) => (
+            <tr class="border-b border-slate-100 align-top last:border-0" data-installment-id={item.id}>
+              <td class="px-3 py-3 font-medium">{item.label}</td>
+              <td class="px-3 py-3">{formatDate(item.dueDate)}</td>
+              <td class="px-3 py-3">{formatMoney(item.amountUsd)}</td>
+              <td class="px-3 py-3">
+                <span class={`inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${stateClass(item.state)}`}>{stateText(item)}</span>
+                {paymentText(item) && <p class="mt-1 text-xs text-slate-600">{paymentText(item)}</p>}
+              </td>
+              <td class="px-3 py-3 text-right" data-actions-for={item.id}>
+                {!annulled && item.state !== "pagada" && (
+                  <a href={reminderUrl(item)} target="_blank" rel="noopener noreferrer" class={buttonClass}>Recordar por WhatsApp</a>
+                )}
+                {!annulled && item.state !== "pagada" && (
+                  <button type="button" data-pay data-id={item.id} data-label={item.label} data-client={financing.client.name} data-amount={item.amountUsd} class={buttonClass}>Registrar pago</button>
+                )}
+                {item.state === "pagada" && (
+                  <button type="button" data-undo data-id={item.id} class={buttonClass}>Deshacer pago</button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <ul class="space-y-3 md:hidden">
+      {financing.installments.map((item) => (
+        <li class="space-y-1 rounded-lg border border-slate-200 p-3 text-sm" data-installment-id={item.id}>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="font-semibold">{item.label}</span>
+            <span class="font-semibold">{formatMoney(item.amountUsd)}</span>
+          </div>
+          <p>Vence el {formatDate(item.dueDate)}</p>
+          <p><span class={`inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${stateClass(item.state)}`}>{stateText(item)}</span></p>
+          {paymentText(item) && <p class="text-xs text-slate-600">{paymentText(item)}</p>}
+          <div class="flex flex-wrap gap-2 pt-1">
+          {!annulled && item.state !== "pagada" && (
+            <a href={reminderUrl(item)} target="_blank" rel="noopener noreferrer" class={buttonClass}>Recordar por WhatsApp</a>
+          )}
+          {!annulled && item.state !== "pagada" && (
+            <button type="button" data-pay data-id={item.id} data-label={item.label} data-client={financing.client.name} data-amount={item.amountUsd} class={buttonClass}>Registrar pago</button>
+          )}
+          {item.state === "pagada" && (
+            <button type="button" data-undo data-id={item.id} class={buttonClass}>Deshacer pago</button>
+          )}
+          </div>
+        </li>
+      ))}
+    </ul>
+    {!annulled && pending.length > 0 && (
+      <button type="button" id="edit-schedule" class={buttonClass}>Editar calendario</button>
+    )}
+  </div>
+
+  {!annulled && (
+    <form id="installments-edit" hidden class="space-y-4 rounded-lg border border-slate-200 p-4" novalidate>
+      <div id="edit-error" hidden role="alert" tabindex="-1" class="space-y-2 rounded-lg bg-red-50 p-3 text-sm text-red-800"></div>
+      <div>
+        <label for="edit-description" class="text-sm font-medium">Descripción</label>
+        <textarea id="edit-description" rows="2" maxlength="500" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">{financing.description}</textarea>
+      </div>
+      <ul class="space-y-2">
+        {financing.installments.filter((item) => item.state === "pagada").map((item) => (
+          <li class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+            <span class="font-semibold">{item.label}</span> · {formatDate(item.dueDate)} · {formatMoney(item.amountUsd)} · Pagada
+            <p class="text-xs text-slate-600">Deshaz el pago para modificarla</p>
+          </li>
+        ))}
+      </ul>
+      <ul id="edit-rows" class="space-y-3"></ul>
+      <button type="button" id="edit-add" class={buttonClass}>Agregar cuota</button>
+      <p id="edit-totals" class="text-sm font-semibold" role="status" aria-live="polite"></p>
+      <div class="flex flex-wrap gap-3">
+        <button type="submit" id="edit-save" class="min-h-[44px] rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400">Guardar calendario</button>
+        <button type="button" id="edit-cancel" class={buttonClass}>Cancelar</button>
+      </div>
+    </form>
+  )}
+</div>
+
+<script>
+  import { nextDueDate, validateSchedule, type Frequency } from "../../utils/financing-schedule";
+  import { isValidIsoDate } from "../../utils/dates";
+  import { formatMoney, fromCents, toCents } from "../../utils/money";
+
+  interface EditRow {
+    id?: string;
+    dueDate: string;
+    amountText: string;
+  }
+
+  const root = document.querySelector<HTMLElement>("#installment-table");
+  const view = document.querySelector<HTMLElement>("#installments-view");
+  const form = document.querySelector<HTMLFormElement>("#installments-edit");
+  const editButton = document.querySelector<HTMLButtonElement>("#edit-schedule");
+
+  if (root && view && form && editButton) {
+    const rowsList = form.querySelector<HTMLUListElement>("#edit-rows")!;
+    const totals = form.querySelector<HTMLElement>("#edit-totals")!;
+    const errorBox = form.querySelector<HTMLElement>("#edit-error")!;
+    const save = form.querySelector<HTMLButtonElement>("#edit-save")!;
+    const description = form.querySelector<HTMLTextAreaElement>("#edit-description")!;
+    const paidCents = Number(root.dataset.paidCents ?? 0);
+    const frequency = (root.dataset.frequency ?? "quincenal") as Frequency;
+    const purchaseDate = root.dataset.purchaseDate ?? "";
+    let rows: EditRow[] = [];
+    let saving = false;
+
+    const initial: EditRow[] = JSON.parse(root.dataset.pending ?? "[]");
+
+    const parse = (text: string) => {
+      const clean = text.trim().replace(",", ".");
+      return /^\d+(\.\d{1,2})?$/.test(clean) ? toCents(clean) : null;
+    };
+
+    function render() {
+      rowsList.replaceChildren();
+      const errors = validateSchedule({
+        purchaseDate,
+        today: "9999-12-31",
+        installments: rows.map((row) => ({ dueDate: row.dueDate, amountCents: parse(row.amountText) ?? 0 })),
+      });
+      rows.forEach((row, index) => {
+        const item = document.createElement("li");
+        item.className = "grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end";
+        const dateWrap = document.createElement("div");
+        const dateLabel = Object.assign(document.createElement("label"), { htmlFor: `edit-date-${index}`, className: "text-xs font-medium text-slate-600", textContent: `Vencimiento (cuota ${index + 1})` });
+        const date = Object.assign(document.createElement("input"), { id: `edit-date-${index}`, type: "date", value: row.dueDate, className: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" });
+        date.addEventListener("input", () => {
+          row.dueDate = date.value;
+        });
+        date.addEventListener("change", () => {
+          row.dueDate = date.value;
+          updateErrors();
+        });
+        dateWrap.append(dateLabel, date);
+        const dateError = errors.find((error) => error.index === index && error.field === "dueDate");
+        dateWrap.append(Object.assign(document.createElement("p"), { className: "mt-1 text-sm text-red-700", textContent: dateError?.message ?? "" }));
+
+        const amountWrap = document.createElement("div");
+        const amountLabel = Object.assign(document.createElement("label"), { htmlFor: `edit-amount-${index}`, className: "text-xs font-medium text-slate-600", textContent: `Monto ($) (cuota ${index + 1})` });
+        const amount = Object.assign(document.createElement("input"), { id: `edit-amount-${index}`, type: "text", inputMode: "decimal", value: row.amountText, className: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" });
+        amount.addEventListener("input", () => {
+          row.amountText = amount.value;
+          updateTotals();
+        });
+        amount.addEventListener("change", updateErrors);
+        amountWrap.append(amountLabel, amount);
+        const amountError = errors.find((error) => error.index === index && error.field === "amount") ?? (parse(row.amountText) === null ? { message: "Escribe un monto válido." } : null);
+        amountWrap.append(Object.assign(document.createElement("p"), { className: "mt-1 text-sm text-red-700", textContent: amountError?.message ?? "" }));
+
+        const remove = Object.assign(document.createElement("button"), { type: "button", className: "min-h-[44px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50", textContent: "Quitar" });
+        remove.setAttribute("aria-label", `Quitar la cuota ${index + 1}`);
+        remove.addEventListener("click", () => {
+          rows.splice(index, 1);
+          render();
+        });
+        item.append(dateWrap, amountWrap, remove);
+        rowsList.append(item);
+      });
+      updateTotals();
+    }
+
+    /** Reescribe solo los mensajes de error para no perder el foco ni lo escrito. */
+    function updateErrors() {
+      const errors = validateSchedule({
+        purchaseDate,
+        today: "9999-12-31",
+        installments: rows.map((row) => ({ dueDate: row.dueDate, amountCents: parse(row.amountText) ?? 0 })),
+      });
+      rowsList.querySelectorAll<HTMLElement>("li").forEach((item, index) => {
+        const messages = item.querySelectorAll<HTMLElement>("p.text-red-700");
+        const date = errors.find((error) => error.index === index && error.field === "dueDate");
+        const amount = errors.find((error) => error.index === index && error.field === "amount") ?? (parse(rows[index].amountText) === null ? { message: "Escribe un monto válido." } : null);
+        if (messages[0]) messages[0].textContent = date?.message ?? "";
+        if (messages[1]) messages[1].textContent = amount?.message ?? "";
+      });
+      updateTotals();
+    }
+
+    function updateTotals() {
+      const pendingCents = rows.reduce((sum, row) => sum + (parse(row.amountText) ?? 0), 0);
+      totals.textContent = `Nuevo total: ${formatMoney(fromCents(paidCents + pendingCents))} · Nuevo saldo: ${formatMoney(fromCents(pendingCents))}`;
+    }
+
+    function showError(message: string, reload = false) {
+      errorBox.replaceChildren(Object.assign(document.createElement("p"), { textContent: message }));
+      if (reload) {
+        const button = Object.assign(document.createElement("button"), { type: "button", className: "min-h-[44px] rounded-lg border border-red-300 bg-white px-4 py-2 font-semibold", textContent: "Recargar" });
+        button.addEventListener("click", () => window.location.reload());
+        errorBox.append(button);
+      }
+      errorBox.hidden = false;
+      errorBox.focus();
+    }
+
+    editButton.addEventListener("click", () => {
+      rows = initial.map((row) => ({ ...row }));
+      errorBox.hidden = true;
+      view.hidden = true;
+      form.hidden = false;
+      render();
+      form.querySelector<HTMLInputElement>("input")?.focus();
+    });
+    form.querySelector<HTMLButtonElement>("#edit-cancel")?.addEventListener("click", () => {
+      form.hidden = true;
+      view.hidden = false;
+      editButton.focus();
+    });
+    form.querySelector<HTMLButtonElement>("#edit-add")?.addEventListener("click", () => {
+      const last = rows.length ? rows[rows.length - 1].dueDate : purchaseDate;
+      const base = isValidIsoDate(last) ? last : purchaseDate;
+      const anchor = Number(purchaseDate.slice(8, 10)) || 1;
+      rows.push({ dueDate: nextDueDate(base, frequency, anchor), amountText: "" });
+      render();
+      rowsList.querySelector<HTMLInputElement>("li:last-child input[type='text']")?.focus();
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (saving) return;
+      errorBox.hidden = true;
+      const amounts = rows.map((row) => parse(row.amountText));
+      const problems = validateSchedule({
+        purchaseDate,
+        today: "9999-12-31",
+        installments: rows.map((row, index) => ({ dueDate: row.dueDate, amountCents: amounts[index] ?? 0 })),
+      });
+      if (problems.length || amounts.some((amount) => amount === null)) {
+        render();
+        showError("Revisa las fechas y los montos de las cuotas.");
+        return;
+      }
+      saving = true;
+      save.disabled = true;
+      try {
+        const response = await fetch(`/api/admin/financings/${root.dataset.ref}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "x-csrf-token": root.dataset.csrf ?? "" },
+          body: JSON.stringify({
+            description: description.value,
+            pendingInstallments: rows.map((row, index) => ({ id: row.id, dueDate: row.dueDate, amountUsd: fromCents(amounts[index]!) })),
+            expectedUpdatedAt: root.dataset.updatedAt,
+          }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (response.ok) {
+          window.location.href = `/admin/pagos-financiados/${root.dataset.ref}?guardado=1`;
+          return;
+        }
+        saving = false;
+        save.disabled = false;
+        if (response.status === 409) return showError(body?.error?.fields?.expectedUpdatedAt ?? body?.error?.message ?? "El financiamiento cambió; recarga la página.", true);
+        const fields = body?.error?.fields ?? {};
+        showError(Object.values(fields)[0] as string ?? body?.error?.message ?? "No se pudo guardar el calendario.");
+      } catch {
+        saving = false;
+        save.disabled = false;
+        showError("No se pudo guardar el calendario. Revisa tu conexión e inténtalo de nuevo.");
+      }
+    });
+  }
+</script>

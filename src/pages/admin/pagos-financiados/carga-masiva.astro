@@ -1,0 +1,31 @@
+---
+import AdminLayout from "../layout.astro";
+import BulkUpload from "../../../components/admin/BulkUpload.astro";
+
+const downloads = [
+  {
+    label: "Descargar plantilla",
+    href: "/api/admin/financings/bulk/template",
+    description: "Una fila por financiamiento. Para financiamientos en curso, indica cuántas cuotas ya se pagaron",
+  },
+];
+---
+<AdminLayout title="Carga masiva de financiamientos">
+  <section class="space-y-6">
+    <div>
+      <a href="/admin/pagos-financiados" class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver a pagos financiados</a>
+      <h1 class="mt-1 text-3xl font-bold">Carga masiva de financiamientos</h1>
+      <p class="mt-1 text-slate-600">Registra de una vez los financiamientos que llevas fuera del sistema. Revisarás los calendarios antes de aplicarlos.</p>
+    </div>
+    <BulkUpload
+      section="financiamientos"
+      sheetName="Financiamientos"
+      title="Carga masiva de financiamientos"
+      downloads={downloads}
+      previewUrl="/api/admin/financings/bulk/preview"
+      applyUrl="/api/admin/financings/bulk/apply"
+      limitsText=".xlsx de hasta 4 MB y 2.000 financiamientos. Los clientes deben estar registrados."
+      csrfToken={Astro.locals.csrfToken ?? ""}
+    />
+  </section>
+</AdminLayout>

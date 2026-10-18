@@ -1,0 +1,92 @@
+---
+import type { MonthView } from "../../utils/calendar";
+import { formatLongDate, formatLongDateRange } from "../../utils/dates";
+
+interface Props {
+  view: MonthView;
+}
+
+const { view } = Astro.props;
+const WEEKDAYS = [
+  ["dom", "domingo"],
+  ["lun", "lunes"],
+  ["mar", "martes"],
+  ["mié", "miércoles"],
+  ["jue", "jueves"],
+  ["vie", "viernes"],
+  ["sáb", "sábado"],
+] as const;
+const LANES = 3;
+type Week = MonthView["weeks"][number];
+/** Congresos del tercer carril en esa columna: en tabletas solo caben dos carriles y pasan a “+N más”. */
+function laneTwoCount(week: Week, column: number) {
+  return week.segments.filter((segment) => segment.lane === 2 && segment.startColumn <= column && column < segment.startColumn + segment.span).length;
+}
+---
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-congress-calendar>
+  <div class="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-semibold text-slate-700" role="presentation">
+    {WEEKDAYS.map(([short, full]) => (
+      <div class="px-1 py-2"><abbr title={full} class="no-underline">{short}</abbr></div>
+    ))}
+  </div>
+  {view.weeks.map((week) => (
+    <div class="relative border-b border-slate-200 last:border-b-0">
+      <div class="pointer-events-none absolute inset-0 grid grid-cols-7" aria-hidden="true">
+        {week.days.map(() => <div class="border-r border-slate-100 last:border-r-0"></div>)}
+      </div>
+      <div class="relative grid grid-cols-7 gap-y-1 pb-1" style={`grid-template-rows: auto repeat(${LANES}, 1.5rem) auto;`}>
+        {week.days.map((day, column) => {
+          const laneTwo = laneTwoCount(week, column);
+          return (
+            <Fragment>
+              <div class={`px-1 pt-1 text-xs ${day.inMonth ? "" : "opacity-50"}`} style={`grid-column: ${column + 1}; grid-row: 1;`}>
+                <a
+                  href={`/admin/congresos/nuevo?desde=${day.date}`}
+                  aria-label={`Registrar congreso el ${formatLongDate(day.date)}`}
+                  aria-current={day.isToday ? "date" : undefined}
+                  class={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-full px-1 font-semibold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-900 ${day.isToday ? "bg-slate-900 text-white hover:bg-slate-700" : ""}`}
+                >{Number(day.date.slice(8, 10))}</a>
+              </div>
+              {(day.hiddenCount > 0 || laneTwo > 0) && (
+                <div class={`px-1 text-xs ${day.inMonth ? "" : "opacity-50"}`} style={`grid-column: ${column + 1}; grid-row: ${LANES + 2};`}>
+                  {day.hiddenCount > 0 && (
+                    <details class="hidden lg:block">
+                      <summary class="min-h-[24px] cursor-pointer font-semibold">+{day.hiddenCount} más</summary>
+                      <ul class="mt-1 space-y-1">
+                        {day.congresses.map((item) => <li><a class="underline" href={`/admin/congresos/${item.ref}`}>{item.name}</a></li>)}
+                      </ul>
+                    </details>
+                  )}
+                  <details class="hidden sm:block lg:hidden">
+                    <summary class="min-h-[24px] cursor-pointer font-semibold">+{day.hiddenCount + laneTwo} más</summary>
+                    <ul class="mt-1 space-y-1">
+                      {day.congresses.map((item) => <li><a class="underline" href={`/admin/congresos/${item.ref}`}>{item.name}</a></li>)}
+                    </ul>
+                  </details>
+                </div>
+              )}
+            </Fragment>
+          );
+        })}
+        {week.segments.map((segment) => (
+          <Fragment>
+            <a
+              href={`/admin/congresos/${segment.ref}`}
+              aria-label={`${segment.name}, ${formatLongDateRange(segment.startDate, segment.endDate)}`}
+              class={`mx-0.5 hidden items-center overflow-hidden whitespace-nowrap px-2 text-xs font-semibold text-slate-900 hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-900 sm:flex ${segment.lane === 2 ? "sm:hidden lg:flex" : ""} ${segment.continuesBefore ? "rounded-l-none" : "rounded-l-md"} ${segment.continuesAfter ? "rounded-r-none" : "rounded-r-md"}`}
+              style={`grid-column: ${segment.startColumn + 1} / span ${segment.span}; grid-row: ${segment.lane + 2}; background:${segment.color.background}; border-left:${segment.continuesBefore ? "0" : `3px solid ${segment.color.border}`}; clip-path:${segment.continuesAfter ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)" : "none"};`}
+            >
+              <span class="truncate">{segment.name}</span>
+              {(segment.continuesBefore || segment.continuesAfter) && <span class="sr-only"> (continúa)</span>}
+            </a>
+            <div
+              aria-hidden="true"
+              class="mx-0.5 mt-1 h-1.5 self-start rounded sm:hidden"
+              style={`grid-column: ${segment.startColumn + 1} / span ${segment.span}; grid-row: ${segment.lane + 2}; background:${segment.color.border};`}
+            ></div>
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  ))}
+</div>

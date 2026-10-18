@@ -1,0 +1,84 @@
+---
+import AdminLayout from "../layout.astro";
+import CongressCalendar from "../../../components/admin/CongressCalendar.astro";
+import CongressList from "../../../components/admin/CongressList.astro";
+import {
+  findNextCongress,
+  listCongresses,
+  listPastCongresses,
+  listUpcomingCongresses,
+} from "../../../server/congresses/service";
+import { buildMonthView } from "../../../utils/calendar";
+import { formatDate, formatMonthYear, monthRange, todayInCaracas } from "../../../utils/dates";
+
+const today = todayInCaracas();
+const requested = Astro.url.searchParams.get("mes") ?? "";
+const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(requested) ? requested : today.slice(0, 7);
+const listView = Astro.url.searchParams.get("vista") === "lista";
+const flash = Astro.url.searchParams.get("guardado") === "1" ? "Congreso guardado" : Astro.url.searchParams.get("eliminado") === "1" ? "Congreso eliminado" : "";
+
+const shift = (value: string, delta: number) => {
+  const [year, number] = value.split("-").map(Number);
+  const index = year * 12 + (number - 1) + delta;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+};
+const link = (target: string) => `/admin/congresos?mes=${target}${listView ? "&vista=lista" : ""}`;
+
+const range = monthRange(month);
+const monthCongresses = listView ? [] : await listCongresses({ from: range.start, to: range.end });
+const view = buildMonthView({ month, today, congresses: monthCongresses, maxLanes: 3 });
+const [upcoming, past] = listView ? await Promise.all([listUpcomingCongresses(), listPastCongresses()]) : [[], []];
+const next = !listView && view.isEmpty ? await findNextCongress(range.end) : null;
+const navClass = "inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50";
+---
+<AdminLayout title="Congresos">
+  <section class="space-y-6">
+    <div role="status" aria-live="polite" class="sr-only">{flash}</div>
+    {flash && <p class="rounded-lg border border-green-300 bg-green-50 p-3 text-sm font-semibold text-green-900">{flash}</p>}
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <h1 class="text-3xl font-bold">Congresos</h1>
+      <div class="flex flex-wrap gap-3">
+        <a href="/admin/congresos/carga-masiva" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold hover:bg-slate-50">Carga masiva</a>
+        <a href="/admin/congresos/nuevo" class="inline-flex min-h-[44px] items-center rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">Nuevo congreso</a>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      {!listView && (
+        <nav class="flex flex-wrap items-center gap-2" aria-label="Navegación de meses">
+          <a href={link(shift(month, -1))} class={navClass}>‹ Mes anterior</a>
+          <a href={link(today.slice(0, 7))} class={navClass}>Hoy</a>
+          <a href={link(shift(month, 1))} class={navClass}>Mes siguiente ›</a>
+        </nav>
+      )}
+      <div class="flex gap-2" role="group" aria-label="Vista">
+        <a href={`/admin/congresos?mes=${month}`} aria-current={listView ? undefined : "true"} class={`${navClass} ${listView ? "" : "bg-slate-900 text-white hover:bg-slate-700"}`}>Calendario</a>
+        <a href={`/admin/congresos?mes=${month}&vista=lista`} aria-current={listView ? "true" : undefined} class={`${navClass} ${listView ? "bg-slate-900 text-white hover:bg-slate-700" : ""}`}>Lista</a>
+      </div>
+    </div>
+
+    {listView ? (
+      <CongressList upcoming={upcoming} past={past} />
+    ) : (
+      <>
+        <h2 class="text-2xl font-semibold capitalize" aria-live="polite" id="month-title">{formatMonthYear(month)}</h2>
+        <CongressCalendar view={view} />
+        {view.isEmpty ? (
+          <div class="rounded-xl bg-white p-4 text-slate-700">
+            <p>No hay congresos en {formatMonthYear(month)}.</p>
+            {next && (
+              <p class="mt-1">
+                El próximo es {next.name}, el {formatDate(next.startDate)}.
+                <a class="ml-1 font-semibold underline" href={link(next.startDate.slice(0, 7))}>Ver ese mes</a>
+              </p>
+            )}
+          </div>
+        ) : (
+          <div class="sm:hidden">
+            <CongressList upcoming={monthCongresses} title={`Congresos de ${formatMonthYear(month)}`} />
+          </div>
+        )}
+      </>
+    )}
+  </section>
+</AdminLayout>

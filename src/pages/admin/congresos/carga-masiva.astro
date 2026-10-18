@@ -1,0 +1,36 @@
+---
+import AdminLayout from "../layout.astro";
+import BulkUpload from "../../../components/admin/BulkUpload.astro";
+
+const downloads = [
+  {
+    label: "Descargar plantilla vacía",
+    href: "/api/admin/congresses/bulk/template",
+    description: "Para registrar congresos nuevos o pegar las filas de tu pestaña Eventos",
+  },
+  {
+    label: "Descargar congresos actuales",
+    href: "/api/admin/congresses/bulk/export",
+    description: "Para corregir los congresos que ya tienes",
+  },
+];
+---
+<AdminLayout title="Carga masiva de congresos">
+  <section class="space-y-6">
+    <div>
+      <a href="/admin/congresos" class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver a congresos</a>
+      <h1 class="mt-1 text-3xl font-bold">Carga masiva de congresos</h1>
+      <p class="mt-1 text-slate-600">Crea congresos nuevos o corrige los que ya tienes con un archivo de Excel. Revisarás los cambios antes de aplicarlos.</p>
+    </div>
+    <BulkUpload
+      section="congresos"
+      sheetName="Congresos"
+      title="Carga masiva de congresos"
+      downloads={downloads}
+      previewUrl="/api/admin/congresses/bulk/preview"
+      applyUrl="/api/admin/congresses/bulk/apply"
+      limitsText=".xlsx de hasta 4 MB y 10.000 congresos. Las columnas Desde, Hasta, Especialidad, Lugar y Nombre coinciden con tu pestaña Eventos."
+      csrfToken={Astro.locals.csrfToken ?? ""}
+    />
+  </section>
+</AdminLayout>

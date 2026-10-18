@@ -1,0 +1,96 @@
+---
+/**
+ * Diálogo modal de confirmación. En el navegador expone `window.confirmAction(...)`, que devuelve
+ * una promesa con `{ confirmed, reason }`. Escape lo cierra y el foco vuelve al botón que lo abrió.
+ */
+---
+<dialog id="confirm-dialog" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message" class="w-[min(28rem,calc(100vw-2rem))] rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
+  <form method="dialog" id="confirm-dialog-form" class="space-y-4 p-6">
+    <h2 id="confirm-dialog-title" class="text-lg font-bold"></h2>
+    <p id="confirm-dialog-message" class="text-sm text-slate-700"></p>
+    <div id="confirm-dialog-reason-field" hidden>
+      <label for="confirm-dialog-reason" class="text-sm font-medium">Motivo (opcional)</label>
+      <textarea id="confirm-dialog-reason" maxlength="500" rows="3" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></textarea>
+      <p class="mt-1 text-xs text-slate-600">Hasta 500 caracteres.</p>
+    </div>
+    <div class="flex flex-wrap justify-end gap-3">
+      <button type="button" id="confirm-dialog-cancel" class="min-h-[44px] min-w-[44px] rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Cancelar</button>
+      <button type="submit" id="confirm-dialog-confirm" value="confirm" class="min-h-[44px] min-w-[44px] rounded-lg bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Confirmar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  interface ConfirmOptions {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    withReason?: boolean;
+  }
+  interface ConfirmResult {
+    confirmed: boolean;
+    reason: string | null;
+  }
+
+  declare global {
+    interface Window {
+      confirmAction: (options: ConfirmOptions) => Promise<ConfirmResult>;
+    }
+  }
+
+  const dialog = document.querySelector<HTMLDialogElement>("#confirm-dialog");
+  const title = document.querySelector<HTMLElement>("#confirm-dialog-title");
+  const message = document.querySelector<HTMLElement>("#confirm-dialog-message");
+  const reasonField = document.querySelector<HTMLElement>("#confirm-dialog-reason-field");
+  const reason = document.querySelector<HTMLTextAreaElement>("#confirm-dialog-reason");
+  const confirmButton = document.querySelector<HTMLButtonElement>("#confirm-dialog-confirm");
+  const cancelButton = document.querySelector<HTMLButtonElement>("#confirm-dialog-cancel");
+  const form = document.querySelector<HTMLFormElement>("#confirm-dialog-form");
+
+  // Safari no da foco a un botón al hacer clic, así que se recuerda el último control activado.
+  let lastTrigger: HTMLElement | null = null;
+  document.addEventListener(
+    "click",
+    (event) => {
+      const trigger = (event.target as Element | null)?.closest<HTMLElement>("button, a");
+      if (trigger && !dialog?.contains(trigger)) lastTrigger = trigger;
+    },
+    true,
+  );
+
+  window.confirmAction = (options) =>
+    new Promise<ConfirmResult>((resolve) => {
+      if (!dialog || !title || !message || !confirmButton || !reasonField || !reason) {
+        resolve({ confirmed: false, reason: null });
+        return;
+      }
+      const active = document.activeElement;
+      const opener = active instanceof HTMLElement && active !== document.body ? active : lastTrigger;
+      title.textContent = options.title;
+      message.textContent = options.message;
+      confirmButton.textContent = options.confirmLabel ?? "Confirmar";
+      reasonField.hidden = !options.withReason;
+      reason.value = "";
+
+      let confirmed = false;
+      const onSubmit = (event: Event) => {
+        event.preventDefault();
+        confirmed = true;
+        dialog.close();
+      };
+      const onCancel = () => dialog.close();
+      const onClose = () => {
+        form?.removeEventListener("submit", onSubmit);
+        cancelButton?.removeEventListener("click", onCancel);
+        dialog.removeEventListener("close", onClose);
+        opener?.focus();
+        const text = reason.value.trim();
+        resolve({ confirmed, reason: confirmed && options.withReason && text ? text : null });
+      };
+      form?.addEventListener("submit", onSubmit);
+      cancelButton?.addEventListener("click", onCancel);
+      dialog.addEventListener("close", onClose);
+      dialog.showModal();
+      confirmButton.focus();
+    });
+</script>

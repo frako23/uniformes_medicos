@@ -1,0 +1,474 @@
+---
+interface Props {
+  csrfToken: string;
+  /** Hoy en Caracas (AAAA-MM-DD). */
+  today: string;
+  client?: { ref: number; name: string; phone: string } | null;
+}
+
+const { csrfToken, today, client = null } = Astro.props;
+const inputClass = "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2";
+const errorSlot = (name: string) => ({ id: `fin-${name}-error`, "data-error-for": name });
+---
+<form
+  id="financing-form"
+  novalidate
+  data-csrf={csrfToken}
+  data-today={today}
+  data-client-ref={client?.ref ?? ""}
+  data-client-name={client?.name ?? ""}
+  data-client-phone={client?.phone ?? ""}
+  class="space-y-6"
+>
+  <div id="fin-form-error" class="hidden rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert" tabindex="-1"></div>
+
+  <fieldset class="space-y-3">
+    <legend class="text-sm font-medium">Cliente <span aria-hidden="true">*</span></legend>
+    <div id="fin-client-selected" class="hidden flex-wrap items-center gap-3 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm">
+      <span id="fin-client-label" class="font-semibold"></span>
+      <button type="button" id="fin-client-change" class="min-h-[44px] rounded-lg border border-slate-300 bg-white px-3 py-2 font-semibold hover:bg-slate-50">Cambiar</button>
+    </div>
+    <div id="fin-client-search-box">
+      <label for="fin-client-search" class="text-sm font-medium">Buscar cliente por nombre o celular</label>
+      <input id="fin-client-search" type="search" autocomplete="off" aria-describedby="fin-client-status" class={inputClass} />
+      <p id="fin-client-status" class="mt-1 text-xs text-slate-600" role="status" aria-live="polite"></p>
+      <div id="fin-client-results" role="radiogroup" aria-label="Resultados de clientes" class="mt-2 space-y-2"></div>
+      <a id="fin-client-register" href="/admin/clientes/nuevo" class="mt-2 hidden min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50">Registrar cliente</a>
+    </div>
+    <div {...errorSlot("clientRef")}></div>
+  </fieldset>
+
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div class="sm:col-span-2">
+      <label for="fin-description" class="text-sm font-medium">Descripción <span aria-hidden="true">*</span></label>
+      <textarea id="fin-description" name="description" rows="3" maxlength="500" required class={inputClass}></textarea>
+      <div {...errorSlot("description")}></div>
+    </div>
+    <div>
+      <label for="fin-purchase" class="text-sm font-medium">Fecha de compra <span aria-hidden="true">*</span></label>
+      <input id="fin-purchase" name="purchaseDate" type="date" value={today} max={today} required class={inputClass} />
+      <div {...errorSlot("purchaseDate")}></div>
+    </div>
+    <div>
+      <label for="fin-frequency" class="text-sm font-medium">Frecuencia</label>
+      <select id="fin-frequency" name="frequency" class={inputClass}>
+        <option value="quincenal" selected>Quincenal</option>
+        <option value="semanal">Semanal</option>
+        <option value="mensual">Mensual</option>
+      </select>
+    </div>
+    <div>
+      <label for="fin-total" class="text-sm font-medium">Monto total ($) <span aria-hidden="true">*</span></label>
+      <input id="fin-total" name="total" type="text" inputmode="decimal" required class={inputClass} aria-describedby="fin-total-hint" />
+      <p id="fin-total-hint" class="mt-1 text-xs text-slate-600">Incluye la inicial. Ej.: 100 o 100,50.</p>
+    </div>
+    <div>
+      <label for="fin-initial" class="text-sm font-medium">Inicial ($, opcional)</label>
+      <input id="fin-initial" name="initial" type="text" inputmode="decimal" class={inputClass} />
+    </div>
+    <div>
+      <label for="fin-count" class="text-sm font-medium">Número de cuotas (1–48) <span aria-hidden="true">*</span></label>
+      <input id="fin-count" name="count" type="number" min="1" max="48" step="1" value="4" required class={inputClass} />
+    </div>
+    <div>
+      <label for="fin-first-due" class="text-sm font-medium">Fecha de la primera cuota</label>
+      <input id="fin-first-due" name="firstDue" type="date" class={inputClass} />
+    </div>
+  </div>
+
+  <section aria-labelledby="fin-schedule-title" class="space-y-3 rounded-xl border border-slate-200 p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 id="fin-schedule-title" class="text-lg font-semibold">Calendario de cuotas</h2>
+      <button type="button" id="fin-regenerate" class="min-h-[44px] rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold hover:bg-slate-50">Volver a generar</button>
+    </div>
+    <p id="fin-schedule-empty" class="text-sm text-slate-600">Completa el monto, el número de cuotas y la fecha de compra para ver el calendario.</p>
+    <ul id="fin-rows" class="space-y-3"></ul>
+    <p id="fin-total-line" class="hidden text-sm font-semibold" role="status" aria-live="polite"></p>
+    <p id="fin-total-diff" class="hidden rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900"></p>
+    <div {...errorSlot("installments")}></div>
+  </section>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <button type="submit" id="fin-submit" class="min-h-[44px] rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Guardar financiamiento</button>
+    <a href="/admin/pagos-financiados" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-3 font-semibold hover:bg-slate-50">Cancelar</a>
+  </div>
+</form>
+
+<script>
+  import { defaultFirstDueDate, generateSchedule, validateSchedule, type Frequency } from "../../utils/financing-schedule";
+  import { isValidIsoDate } from "../../utils/dates";
+  import { formatMoney, fromCents, toCents } from "../../utils/money";
+
+  interface Row {
+    isInitial: boolean;
+    dueDate: string;
+    amountCents: number;
+    /** Texto del campo mientras se edita; puede no ser un monto válido todavía. */
+    amountText: string;
+  }
+
+  const form = document.querySelector<HTMLFormElement>("#financing-form")!;
+  const $ = <T extends HTMLElement>(selector: string) => form.querySelector<T>(selector)!;
+  const today = form.dataset.today ?? "";
+  const purchase = $<HTMLInputElement>("#fin-purchase");
+  const total = $<HTMLInputElement>("#fin-total");
+  const initial = $<HTMLInputElement>("#fin-initial");
+  const count = $<HTMLInputElement>("#fin-count");
+  const frequency = $<HTMLSelectElement>("#fin-frequency");
+  const firstDue = $<HTMLInputElement>("#fin-first-due");
+  const description = $<HTMLTextAreaElement>("#fin-description");
+  const rowsList = $<HTMLUListElement>("#fin-rows");
+  const emptyNote = $<HTMLElement>("#fin-schedule-empty");
+  const totalLine = $<HTMLElement>("#fin-total-line");
+  const totalDiff = $<HTMLElement>("#fin-total-diff");
+  const formError = $<HTMLElement>("#fin-form-error");
+  const submit = $<HTMLButtonElement>("#fin-submit");
+
+  let rows: Row[] = [];
+  let firstDueEdited = false;
+  let clientRef: number | null = form.dataset.clientRef ? Number(form.dataset.clientRef) : null;
+  let serverErrors: Record<string, string> = {};
+  let submitting = false;
+
+  /* Cliente ----------------------------------------------------------- */
+  const search = $<HTMLInputElement>("#fin-client-search");
+  const results = $<HTMLElement>("#fin-client-results");
+  const statusLine = $<HTMLElement>("#fin-client-status");
+  const registerLink = $<HTMLAnchorElement>("#fin-client-register");
+  const selectedBox = $<HTMLElement>("#fin-client-selected");
+  const selectedLabel = $<HTMLElement>("#fin-client-label");
+  const searchBox = $<HTMLElement>("#fin-client-search-box");
+  let searchTimer: number | undefined;
+
+  function showSelected(ref: number | null, label = "") {
+    clientRef = ref;
+    selectedBox.classList.toggle("hidden", ref === null);
+    selectedBox.classList.toggle("flex", ref !== null);
+    searchBox.classList.toggle("hidden", ref !== null);
+    selectedLabel.textContent = label;
+    if (ref === null) search.focus();
+  }
+
+  if (clientRef) showSelected(clientRef, `${form.dataset.clientName} · ${form.dataset.clientPhone}`);
+
+  $<HTMLButtonElement>("#fin-client-change").addEventListener("click", () => {
+    showSelected(null);
+    results.replaceChildren();
+    statusLine.textContent = "";
+  });
+
+  async function runSearch() {
+    const query = search.value.trim();
+    results.replaceChildren();
+    registerLink.classList.add("hidden");
+    registerLink.classList.remove("inline-flex");
+    if (query.length < 2) {
+      statusLine.textContent = "Escribe al menos 2 letras o 3 dígitos del celular.";
+      return;
+    }
+    statusLine.textContent = "Buscando…";
+    try {
+      const response = await fetch(`/api/admin/clients?search=${encodeURIComponent(query)}&pageSize=20`);
+      const body = await response.json();
+      const clients: Array<{ ref: number; name: string; phone: string }> = body.data ?? [];
+      statusLine.textContent = clients.length ? `${clients.length} ${clients.length === 1 ? "resultado" : "resultados"}` : "No hay clientes que coincidan.";
+      if (!clients.length) {
+        registerLink.classList.remove("hidden");
+        registerLink.classList.add("inline-flex");
+      }
+      for (const found of clients) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("role", "radio");
+        button.setAttribute("aria-checked", "false");
+        button.className = "block min-h-[44px] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm hover:bg-slate-50";
+        button.textContent = `${found.name} · ${found.phone}`;
+        button.addEventListener("click", () => {
+          showSelected(found.ref, `${found.name} · ${found.phone}`);
+          clearError("clientRef");
+        });
+        results.append(button);
+      }
+    } catch {
+      statusLine.textContent = "No se pudo buscar. Inténtalo de nuevo.";
+    }
+  }
+  search.addEventListener("input", () => {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(() => void runSearch(), 250);
+  });
+
+  /* Errores ----------------------------------------------------------- */
+  function slot(name: string) {
+    return form.querySelector<HTMLElement>(`[data-error-for="${name}"]`);
+  }
+  function clearError(name: string) {
+    slot(name)?.replaceChildren();
+  }
+  function showError(name: string, message: string) {
+    const box = slot(name);
+    if (!box) return false;
+    const text = document.createElement("p");
+    text.className = "mt-1 text-sm text-red-700";
+    text.setAttribute("role", "alert");
+    text.textContent = message;
+    box.replaceChildren(text);
+    return true;
+  }
+
+  /* Calendario --------------------------------------------------------- */
+  const parseMoney = (text: string): number | null => {
+    const clean = text.trim().replace(",", ".");
+    if (!/^\d+(\.\d{1,2})?$/.test(clean)) return null;
+    return toCents(clean);
+  };
+
+  function generationInputs() {
+    const totalCents = parseMoney(total.value);
+    const initialCents = initial.value.trim() ? parseMoney(initial.value) : 0;
+    const installments = Number(count.value);
+    if (totalCents === null || totalCents <= 0 || initialCents === null || initialCents >= totalCents) return null;
+    if (!Number.isInteger(installments) || installments < 1 || installments > 48) return null;
+    if (!isValidIsoDate(purchase.value) || !isValidIsoDate(firstDue.value)) return null;
+    return { totalCents, initialCents, count: installments };
+  }
+
+  function regenerate() {
+    const input = generationInputs();
+    if (!input) {
+      rows = [];
+      render();
+      return;
+    }
+    rows = generateSchedule({
+      purchaseDate: purchase.value,
+      totalCents: input.totalCents,
+      initialCents: input.initialCents,
+      count: input.count,
+      frequency: frequency.value as Frequency,
+      firstDueDate: firstDue.value,
+    }).map((item) => ({ ...item, amountText: fromCents(item.amountCents) }));
+    render();
+  }
+
+  function proposeFirstDue() {
+    if (!isValidIsoDate(purchase.value)) return;
+    if (!firstDueEdited) firstDue.value = defaultFirstDueDate(purchase.value, frequency.value as Frequency);
+  }
+
+  function rowErrors() {
+    const errors = validateSchedule({
+      purchaseDate: purchase.value,
+      today,
+      installments: rows.map((row) => ({ dueDate: row.dueDate, amountCents: row.amountCents })),
+    });
+    const byRow = new Map<string, string>();
+    for (const error of errors) if (error.index >= 0) byRow.set(`${error.index}.${error.field}`, error.message);
+    return { all: errors, byRow };
+  }
+
+  function updateSummary() {
+    const sum = rows.reduce((acc, row) => acc + row.amountCents, 0);
+    totalLine.textContent = `Total del financiamiento: ${formatMoney(fromCents(sum))}`;
+    totalLine.classList.toggle("hidden", rows.length === 0);
+    const indicated = parseMoney(total.value);
+    const differs = rows.length > 0 && indicated !== null && indicated !== sum;
+    totalDiff.classList.toggle("hidden", !differs);
+    if (differs) totalDiff.textContent = `El total (${formatMoney(fromCents(sum))}) difiere del monto indicado (${formatMoney(fromCents(indicated!))}).`;
+  }
+
+  function render() {
+    const { byRow } = rowErrors();
+    rowsList.replaceChildren();
+    emptyNote.classList.toggle("hidden", rows.length > 0);
+    let regular = 0;
+    const regularCount = rows.filter((row) => !row.isInitial).length;
+    rows.forEach((row, index) => {
+      if (!row.isInitial) regular += 1;
+      const label = row.isInitial ? "Inicial" : `${regular} de ${regularCount}`;
+      const item = document.createElement("li");
+      item.className = "grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-[8rem_1fr_1fr] sm:items-start";
+      const name = document.createElement("p");
+      name.className = "pt-2 text-sm font-semibold";
+      name.textContent = label;
+
+      const dateId = `fin-row-${index}-date`;
+      const dateWrap = document.createElement("div");
+      const dateLabel = document.createElement("label");
+      dateLabel.htmlFor = dateId;
+      dateLabel.className = "text-xs font-medium text-slate-600";
+      dateLabel.textContent = `Vencimiento (${label})`;
+      const date = document.createElement("input");
+      date.id = dateId;
+      date.type = "date";
+      date.value = row.dueDate;
+      date.className = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2";
+      const dateError = byRow.get(`${index}.dueDate`) ?? serverErrors[`installments.${index}.dueDate`];
+      if (dateError) date.setAttribute("aria-invalid", "true");
+      const dateMsg = Object.assign(document.createElement("p"), { className: "mt-1 text-sm text-red-700" });
+      dateMsg.dataset.err = `${index}.dueDate`;
+      date.addEventListener("input", () => {
+        row.dueDate = date.value;
+      });
+      date.addEventListener("change", () => {
+        row.dueDate = date.value;
+        updateErrors();
+      });
+      dateWrap.append(dateLabel, date);
+      dateMsg.textContent = dateError ?? "";
+      dateWrap.append(dateMsg);
+
+      const amountId = `fin-row-${index}-amount`;
+      const amountWrap = document.createElement("div");
+      const amountLabel = document.createElement("label");
+      amountLabel.htmlFor = amountId;
+      amountLabel.className = "text-xs font-medium text-slate-600";
+      amountLabel.textContent = `Monto ($) (${label})`;
+      const amount = document.createElement("input");
+      amount.id = amountId;
+      amount.type = "text";
+      amount.inputMode = "decimal";
+      amount.value = row.amountText;
+      amount.className = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2";
+      const amountError = byRow.get(`${index}.amount`) ?? serverErrors[`installments.${index}.amountUsd`];
+      if (amountError) amount.setAttribute("aria-invalid", "true");
+      const amountMsg = Object.assign(document.createElement("p"), { className: "mt-1 text-sm text-red-700" });
+      amountMsg.dataset.err = `${index}.amount`;
+      amount.addEventListener("input", () => {
+        row.amountText = amount.value;
+        row.amountCents = parseMoney(amount.value) ?? 0;
+        updateSummary();
+      });
+      amount.addEventListener("change", updateErrors);
+      amountWrap.append(amountLabel, amount);
+      amountMsg.textContent = amountError ?? "";
+      amountWrap.append(amountMsg);
+
+      item.append(name, dateWrap, amountWrap);
+      rowsList.append(item);
+    });
+    updateSummary();
+  }
+
+  /** Actualiza los mensajes de error sin reconstruir los campos (no pierde el foco ni lo escrito). */
+  function updateErrors() {
+    serverErrors = {};
+    const { byRow } = rowErrors();
+    rowsList.querySelectorAll<HTMLElement>("[data-err]").forEach((node) => {
+      const message = byRow.get(node.dataset.err!) ?? "";
+      node.textContent = message;
+      const input = node.previousElementSibling;
+      if (message) input?.setAttribute("aria-invalid", "true");
+      else input?.removeAttribute("aria-invalid");
+    });
+    updateSummary();
+  }
+
+  for (const control of [total, initial, count, frequency]) {
+    control.addEventListener("input", () => {
+      if (control === frequency) proposeFirstDue();
+      regenerate();
+    });
+  }
+  purchase.addEventListener("change", () => {
+    proposeFirstDue();
+    regenerate();
+  });
+  firstDue.addEventListener("change", () => {
+    firstDueEdited = true;
+    regenerate();
+  });
+  $<HTMLButtonElement>("#fin-regenerate").addEventListener("click", async () => {
+    if (rows.length) {
+      const { confirmed } = await window.confirmAction({
+        title: "Volver a generar",
+        message: "Se descartarán las ediciones del calendario y se calculará de nuevo con los datos indicados.",
+        confirmLabel: "Volver a generar",
+      });
+      if (!confirmed) return;
+    }
+    firstDueEdited = false;
+    proposeFirstDue();
+    regenerate();
+  });
+
+  proposeFirstDue();
+
+  /* Envío --------------------------------------------------------------- */
+  function showFormError(message: string) {
+    formError.textContent = message;
+    formError.classList.remove("hidden");
+    formError.focus();
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (submitting) return;
+    formError.classList.add("hidden");
+    form.querySelectorAll<HTMLElement>("[data-error-for]").forEach((box) => box.replaceChildren());
+
+    let invalid = false;
+    if (clientRef === null) {
+      showError("clientRef", "Elige un cliente.");
+      invalid = true;
+    }
+    if (!description.value.trim()) {
+      showError("description", "La descripción es obligatoria.");
+      invalid = true;
+    }
+    if (!rows.length) {
+      showError("installments", "Completa los datos para generar el calendario de cuotas.");
+      invalid = true;
+    }
+    const { all } = rowErrors();
+    if (all.length) {
+      render();
+      invalid = true;
+    }
+    if (invalid) {
+      form.querySelector<HTMLElement>('[role="alert"], [aria-invalid="true"]')?.focus?.();
+      return;
+    }
+
+    submitting = true;
+    submit.disabled = true;
+    let response: Response;
+    try {
+      response = await fetch("/api/admin/financings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": form.dataset.csrf ?? "" },
+        body: JSON.stringify({
+          clientRef,
+          description: description.value,
+          purchaseDate: purchase.value,
+          frequency: frequency.value,
+          installments: rows.map((row) => ({ isInitial: row.isInitial, dueDate: row.dueDate, amountUsd: fromCents(row.amountCents) })),
+        }),
+      });
+    } catch {
+      submitting = false;
+      submit.disabled = false;
+      showFormError("No se pudo guardar el financiamiento. Revisa tu conexión e inténtalo de nuevo.");
+      return;
+    }
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) {
+      window.location.href = `/admin/pagos-financiados/${body.data.ref}?registrado=1`;
+      return;
+    }
+    submitting = false;
+    submit.disabled = false;
+    if (response.status === 401) return showFormError("Tu sesión expiró. Inicia sesión de nuevo para guardar el financiamiento.");
+    const fields: Record<string, string> = body?.error?.fields ?? {};
+    serverErrors = fields;
+    let shown = false;
+    for (const [key, message] of Object.entries(fields)) {
+      if (key.startsWith("installments.")) continue;
+      shown = showError(key, message) || shown;
+    }
+    if (Object.keys(fields).some((key) => key.startsWith("installments."))) render();
+    if (!shown && !Object.keys(fields).some((key) => key.startsWith("installments."))) {
+      showFormError(body?.error?.message ?? "No se pudo guardar el financiamiento.");
+    }
+  });
+</script>

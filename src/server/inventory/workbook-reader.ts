@@ -1,16 +1,12 @@
-import { createHash } from "node:crypto";
-import { unzipSync } from "fflate";
-import readExcelFile from "read-excel-file/node";
+import { readXlsxSheets } from "../bulk/file-guards";
+import { isRowEmpty, readMetadataPairs } from "../bulk/sheet";
 import { createIssue, InventoryFileError, type RawIssue } from "./issues";
 import type { CellValue } from "./rows";
 import {
   FIXED_COLUMNS,
   KIND_INVENTORY_LABEL,
   KIND_TEMPLATE_LABEL,
-  MAX_FILE_BYTES,
   MAX_PRODUCT_ROWS,
-  MAX_UNCOMPRESSED_BYTES,
-  MAX_ZIP_ENTRIES,
   META_FILE_KIND,
   META_FORMAT_VERSION,
   META_GENERATED_AT,
@@ -44,46 +40,8 @@ export interface ReadInventoryResult {
   issues: RawIssue[];
 }
 
-const OLE_SIGNATURE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
-
-function startsWith(bytes: Uint8Array, signature: number[]) {
-  return bytes.length >= signature.length && signature.every((value, index) => bytes[index] === value);
-}
-
-function inspectContainer(bytes: Uint8Array) {
-  let entries = 0;
-  let uncompressed = 0;
-  let hasWorkbook = false;
-  let hasMacros = false;
-  try {
-    unzipSync(bytes, {
-      filter(file) {
-        entries += 1;
-        uncompressed += file.originalSize;
-        if (file.name === "xl/workbook.xml") hasWorkbook = true;
-        if (file.name.toLowerCase() === "xl/vbaproject.bin") hasMacros = true;
-        return false;
-      },
-    });
-  } catch {
-    throw new InventoryFileError("FILE_UNREADABLE");
-  }
-  if (entries > MAX_ZIP_ENTRIES || uncompressed > MAX_UNCOMPRESSED_BYTES) throw new InventoryFileError("FILE_UNREADABLE");
-  if (hasMacros) throw new InventoryFileError("FILE_HAS_MACROS");
-  if (!hasWorkbook) throw new InventoryFileError("FILE_NOT_XLSX");
-}
-
-function isRowEmpty(row: CellValue[]) {
-  return row.every((cell) => cell === null || cell === undefined || (typeof cell === "string" && cell.trim() === ""));
-}
-
 function readMetadata(rows: CellValue[][] | undefined) {
-  const found = new Map<string, string>();
-  for (const row of rows ?? []) {
-    const [label, value] = row;
-    if (typeof label !== "string" || value === null || value === undefined) continue;
-    found.set(normalizeHeader(label), value instanceof Date ? value.toISOString() : String(value).trim());
-  }
+  const found = readMetadataPairs(rows);
   const rawKind = normalizeHeader(found.get(normalizeHeader(META_FILE_KIND)) ?? "");
   const kind: WorkbookKind =
     rawKind === normalizeHeader(KIND_TEMPLATE_LABEL)
@@ -100,25 +58,12 @@ function readMetadata(rows: CellValue[][] | undefined) {
 
 /** Lee y estructura un libro subido. Lanza `InventoryFileError` cuando no puede leerse como `.xlsx`. */
 export async function readInventoryWorkbook(input: { fileName: string; bytes: Uint8Array }): Promise<ReadInventoryResult> {
-  const { fileName, bytes } = input;
-  if (bytes.length === 0) throw new InventoryFileError("FILE_REQUIRED");
-  if (bytes.length > MAX_FILE_BYTES) throw new InventoryFileError("FILE_TOO_LARGE");
-  if (startsWith(bytes, OLE_SIGNATURE)) throw new InventoryFileError("FILE_PROTECTED_OR_XLS");
-  if (!/\.xlsx$/i.test(fileName.trim())) throw new InventoryFileError("FILE_NOT_XLSX");
-  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new InventoryFileError("FILE_NOT_XLSX");
-  inspectContainer(bytes);
+  const { sheets, sha256 } = await readXlsxSheets({
+    fileName: input.fileName,
+    bytes: input.bytes,
+    fail: (code) => new InventoryFileError(code),
+  });
 
-  let sheets: Array<{ sheet: string; data: CellValue[][] }>;
-  try {
-    sheets = (await readExcelFile(Buffer.from(bytes) as never)) as unknown as typeof sheets;
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (code === "XLS_FILE_NOT_SUPPORTED") throw new InventoryFileError("FILE_PROTECTED_OR_XLS");
-    if (code === "FILE_NOT_SUPPORTED") throw new InventoryFileError("FILE_NOT_XLSX");
-    throw new InventoryFileError("FILE_UNREADABLE");
-  }
-
-  const sha256 = createHash("sha256").update(bytes).digest("hex");
   const findSheet = (name: string) => sheets.find((candidate) => normalizeHeader(candidate.sheet) === normalizeHeader(name));
   const metadata = readMetadata(findSheet(SHEET_INSTRUCTIONS)?.data);
   const workbook: InventoryWorkbookInfo = { sha256, ...metadata, ignoredColumns: [] };

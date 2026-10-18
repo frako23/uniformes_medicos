@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   integer,
   index,
   numeric,
@@ -31,6 +32,13 @@ export const migrationItemStatusEnum = pgEnum("migration_item_status", [
   "error",
   "verified",
 ]);
+
+export const clientSexEnum = pgEnum("client_sex", ["Mujer", "Hombre"]);
+export const financingFrequencyEnum = pgEnum("financing_frequency", ["semanal", "quincenal", "mensual"]);
+export const installmentStatusEnum = pgEnum("installment_status", ["pendiente", "pagada"]);
+export const paymentCurrencyEnum = pgEnum("payment_currency", ["USD", "VES"]);
+export const rateSourceEnum = pgEnum("rate_source", ["oficial", "manual"]);
+export const recordOriginEnum = pgEnum("record_origin", ["panel", "carga_masiva"]);
 
 export const adminUsers = pgTable(
   "admin_users",
@@ -267,6 +275,114 @@ export const productImagesRelations = relations(productImages, ({ one }) => ({
   }),
 }));
 
+const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
+
+/* Los CHECK, la unicidad diferible del celular y los índices parciales viven solo en el SQL (0003). */
+export const clients = pgTable(
+  "clients",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ref: integer("ref").generatedAlwaysAsIdentity().notNull(),
+    name: text("name").notNull(),
+    phoneE164: text("phone_e164").notNull(),
+    sex: clientSexEnum("sex"),
+    size: text("size"),
+    city: text("city"),
+    hospital: text("hospital"),
+    clinic: text("clinic"),
+    specialty: text("specialty"),
+    notes: text("notes"),
+    searchText: text("search_text").notNull(),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("clients_search_idx").on(table.searchText, table.ref)],
+);
+
+export const financings = pgTable(
+  "financings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ref: integer("ref").generatedAlwaysAsIdentity().notNull(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "restrict" }),
+    description: text("description").notNull(),
+    purchaseDate: date("purchase_date", { mode: "string" }).notNull(),
+    frequency: financingFrequencyEnum("frequency").notNull().default("quincenal"),
+    origin: recordOriginEnum("origin").notNull().default("panel"),
+    annulledAt: timestamptz("annulled_at"),
+    annulmentReason: text("annulment_reason"),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("financings_client_idx").on(table.clientId)],
+);
+
+export const installments = pgTable(
+  "installments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    financingId: uuid("financing_id")
+      .notNull()
+      .references(() => financings.id, { onDelete: "cascade" }),
+    isInitial: boolean("is_initial").notNull().default(false),
+    dueDate: date("due_date", { mode: "string" }).notNull(),
+    amountUsd: numeric("amount_usd", { precision: 12, scale: 2 }).notNull(),
+    status: installmentStatusEnum("status").notNull().default("pendiente"),
+    paidOn: date("paid_on", { mode: "string" }),
+    paymentCurrency: paymentCurrencyEnum("payment_currency"),
+    euroRate: numeric("euro_rate", { precision: 14, scale: 2 }),
+    euroRateDate: date("euro_rate_date", { mode: "string" }),
+    euroRateSource: rateSourceEnum("euro_rate_source"),
+    amountVes: numeric("amount_ves", { precision: 18, scale: 2 }),
+    paymentReference: text("payment_reference"),
+    paymentOrigin: recordOriginEnum("payment_origin"),
+    paidRecordedAt: timestamptz("paid_recorded_at"),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("installments_financing_idx").on(table.financingId)],
+);
+
+export const euroRates = pgTable("euro_rates", {
+  rateDate: date("rate_date", { mode: "string" }).primaryKey(),
+  value: numeric("value", { precision: 14, scale: 2 }).notNull(),
+  sourceValue: numeric("source_value", { precision: 20, scale: 8 }).notNull(),
+  source: text("source").notNull().default("dolarapi"),
+  fetchedAt: timestamptz("fetched_at").notNull(),
+});
+
+export const congresses = pgTable(
+  "congresses",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ref: integer("ref").generatedAlwaysAsIdentity().notNull(),
+    name: text("name").notNull(),
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }).notNull(),
+    venue: text("venue"),
+    specialty: text("specialty"),
+    notes: text("notes"),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    updatedAt: timestamptz("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("congresses_dates_idx").on(table.startDate, table.endDate)],
+);
+
+export const clientsRelations = relations(clients, ({ many }) => ({
+  financings: many(financings),
+}));
+
+export const financingsRelations = relations(financings, ({ one, many }) => ({
+  client: one(clients, { fields: [financings.clientId], references: [clients.id] }),
+  installments: many(installments),
+}));
+
+export const installmentsRelations = relations(installments, ({ one }) => ({
+  financing: one(financings, { fields: [installments.financingId], references: [financings.id] }),
+}));
+
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type AdminSession = typeof adminSessions.$inferSelect;
 export type Category = typeof categories.$inferSelect;
@@ -275,5 +391,10 @@ export type ProductVariant = typeof productVariants.$inferSelect;
 export type ProductImage = typeof productImages.$inferSelect;
 export type MigrationRun = typeof migrationRuns.$inferSelect;
 export type MigrationItem = typeof migrationItems.$inferSelect;
+export type Client = typeof clients.$inferSelect;
+export type Financing = typeof financings.$inferSelect;
+export type Installment = typeof installments.$inferSelect;
+export type EuroRate = typeof euroRates.$inferSelect;
+export type Congress = typeof congresses.$inferSelect;
 
 export const positiveStockSql = sql`${productVariants.quantity} > 0`;

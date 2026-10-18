@@ -1,0 +1,36 @@
+---
+import AdminLayout from "../layout.astro";
+import BulkUpload from "../../../components/admin/BulkUpload.astro";
+
+const downloads = [
+  {
+    label: "Descargar plantilla vacía",
+    href: "/api/admin/clients/bulk/template",
+    description: "Para registrar clientes nuevos o pegar las filas de tu hoja de médicos",
+  },
+  {
+    label: "Descargar clientes actuales",
+    href: "/api/admin/clients/bulk/export",
+    description: "Para corregir datos de los clientes que ya tienes",
+  },
+];
+---
+<AdminLayout title="Carga masiva de clientes">
+  <section class="space-y-6">
+    <div>
+      <a href="/admin/clientes" class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver a clientes</a>
+      <h1 class="mt-1 text-3xl font-bold">Carga masiva de clientes</h1>
+      <p class="mt-1 text-slate-600">Crea clientes nuevos o actualiza los que ya tienes con un archivo de Excel. Revisarás los cambios antes de aplicarlos.</p>
+    </div>
+    <BulkUpload
+      section="clientes"
+      sheetName="Clientes"
+      title="Carga masiva de clientes"
+      downloads={downloads}
+      previewUrl="/api/admin/clients/bulk/preview"
+      applyUrl="/api/admin/clients/bulk/apply"
+      limitsText=".xlsx de hasta 4 MB y 10.000 clientes. También puedes subir tu propio libro si su primera hoja tiene las columnas Nombre y Celular."
+      csrfToken={Astro.locals.csrfToken ?? ""}
+    />
+  </section>
+</AdminLayout>

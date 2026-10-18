@@ -1,13 +1,24 @@
 <!--
 ## Sync Impact Report
-- Version change: 1.0.0 → 1.1.0 (principio añadido).
-- Principios incorporados: VI. Formato uniforme de montos en dólares.
+- Version change: 1.1.0 → 1.1.1 (PATCH: aclaración sin cambio semántico).
+- Principios modificados: ninguno.
+- Sección modificada: Restricciones de producto y plataforma. La restricción de
+  pagos y ventas precisa que registrar acuerdos de financiamiento y cobros hechos
+  fuera de la aplicación no es procesar pagos, siempre que el panel no mueva
+  dinero, no se integre con bancos ni pasarelas, no modifique existencias y no
+  confirme pedidos de la vitrina.
+- Origen: Decision 16 de specs/004-clientes-financiamiento-congresos/research.md,
+  aprobada por la propietaria el 2026-10-18.
 - Secciones añadidas: ninguna. Secciones eliminadas: ninguna.
 - Plantillas: sin cambios necesarios.
-- TODO pendiente: confirmar la fecha original de ratificación.
+- Seguimiento: AGENTS.md («no procesar pagos ni ventas confirmadas») sigue siendo
+  compatible; añadir la aclaración cuando se actualice la documentación de la 004.
+- TODO pendiente: confirmar la fecha original de ratificación (candidata:
+  2026-10-01, primer commit que incluye la constitución).
 
 Historial: 1.0.0 — primera constitución (inventario confiable; compra sencilla;
-diseño accesible; rendimiento y resiliencia; seguridad y calidad).
+diseño accesible; rendimiento y resiliencia; seguridad y calidad). 1.1.0 —
+principio VI, formato uniforme de montos en dólares.
 -->
 
 # Constitución de Uniformes Médicos
@@ -116,7 +127,12 @@ la aplicación.
   y gestionar existencias. DEBE comunicar el resultado de cada operación y
   reflejar los cambios en la vitrina sin depender de editar código fuente.
 - El panel NO DEBE procesar pagos ni confirmar ventas mientras el negocio no
-  disponga de un flujo de pago y confirmación definido.
+  disponga de un flujo de pago y confirmación definido. El panel PUEDE
+  registrar, como información administrativa, acuerdos de financiamiento y
+  cobros realizados fuera de la aplicación (efectivo, transferencias, pago
+  móvil u otros), siempre que no mueva dinero, no se integre con bancos ni
+  pasarelas de pago, no modifique existencias y no confirme pedidos de la
+  vitrina.
 - La aplicación DEBE conservar Astro con TypeScript y las tecnologías de
   presentación vigentes mientras cubran las necesidades del producto. Las
   decisiones técnicas del backend propio que aún no estén fijadas se tomarán en
@@ -162,4 +178,4 @@ PATCH para aclaraciones sin cambio semántico. La fecha de última enmienda se
 actualiza en cada cambio aceptado. La fecha de ratificación inicial DEBE
 confirmarse cuando la constitución sea adoptada formalmente.
 
-**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): confirmar fecha de adopción | **Last Amended**: 2026-10-18
+**Version**: 1.1.1 | **Ratified**: TODO(RATIFICATION_DATE): confirmar fecha de adopción | **Last Amended**: 2026-10-18

@@ -1,12 +1,14 @@
-export type IssueSeverity = "error" | "warning" | "notice";
+import {
+  countIssues,
+  groupIssues as groupBulkIssues,
+  type FileRejectionCode,
+  type IssueSeverity,
+  type RawIssue as BulkRawIssue,
+  type ValidationIssue as BulkValidationIssue,
+} from "../bulk/issues";
 
-export type FileRejectionCode =
-  | "FILE_REQUIRED"
-  | "FILE_TOO_LARGE"
-  | "FILE_NOT_XLSX"
-  | "FILE_PROTECTED_OR_XLS"
-  | "FILE_HAS_MACROS"
-  | "FILE_UNREADABLE";
+export { countIssues };
+export type { FileRejectionCode, IssueSeverity };
 
 export type IssueCode =
   | "SHEET_NOT_FOUND"
@@ -42,24 +44,8 @@ export type IssueCode =
   | "IGNORED_COLUMNS"
   | "MISSING_METADATA";
 
-/** Incidencia agrupada, tal como viaja en la vista previa. */
-export interface ValidationIssue {
-  severity: IssueSeverity;
-  code: IssueCode;
-  column: string | null;
-  message: string;
-  rows: string[];
-  count: number;
-}
-
-/** Incidencia individual, antes de agrupar. `row` es la fila de Excel. */
-export interface RawIssue {
-  severity: IssueSeverity;
-  code: IssueCode;
-  column: string | null;
-  message: string;
-  row: number | null;
-}
+export type ValidationIssue = BulkValidationIssue<IssueCode>;
+export type RawIssue = BulkRawIssue<IssueCode>;
 
 export const FILE_REJECTION_MESSAGES: Record<FileRejectionCode, string> = {
   FILE_REQUIRED: "Selecciona un archivo de Excel (.xlsx).",
@@ -210,58 +196,7 @@ export function createIssue(code: IssueCode, params: IssueParams = {}): RawIssue
   };
 }
 
-const SEVERITY_ORDER: Record<IssueSeverity, number> = { error: 0, warning: 1, notice: 2 };
-
-function compactRows(rows: number[]): string[] {
-  const sorted = [...new Set(rows)].sort((left, right) => left - right);
-  const ranges: string[] = [];
-  let start: number | undefined;
-  let previous: number | undefined;
-  const flush = () => {
-    if (start === undefined || previous === undefined) return;
-    ranges.push(start === previous ? String(start) : `${start}-${previous}`);
-  };
-  for (const row of sorted) {
-    if (previous !== undefined && row === previous + 1) {
-      previous = row;
-      continue;
-    }
-    flush();
-    start = row;
-    previous = row;
-  }
-  flush();
-  return ranges;
-}
-
 /** Agrupa por gravedad, código, columna y mensaje, compactando las filas en rangos. */
 export function groupIssues(issues: RawIssue[]): ValidationIssue[] {
-  const groups = new Map<string, { issue: RawIssue; rows: number[]; count: number }>();
-  for (const issue of issues) {
-    const key = JSON.stringify([issue.severity, issue.code, issue.column, issue.message]);
-    const group = groups.get(key) ?? { issue, rows: [], count: 0 };
-    group.count += 1;
-    if (issue.row !== null) group.rows.push(issue.row);
-    groups.set(key, group);
-  }
-  return [...groups.values()]
-    .map(({ issue, rows, count }) => ({
-      severity: issue.severity,
-      code: issue.code,
-      column: issue.column,
-      message: issue.message,
-      rows: compactRows(rows),
-      count,
-    }))
-    .sort((left, right) => SEVERITY_ORDER[left.severity] - SEVERITY_ORDER[right.severity]);
-}
-
-export function countIssues(issues: Array<Pick<ValidationIssue, "severity" | "count">>) {
-  let errors = 0;
-  let warnings = 0;
-  for (const issue of issues) {
-    if (issue.severity === "error") errors += issue.count;
-    else if (issue.severity === "warning") warnings += issue.count;
-  }
-  return { errors, warnings };
+  return groupBulkIssues(issues);
 }

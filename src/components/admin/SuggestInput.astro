@@ -1,0 +1,42 @@
+---
+import FieldError from "./FieldError.astro";
+
+interface Props {
+  name: string;
+  label: string;
+  value?: string | null;
+  options: string[];
+  maxLength: number;
+  required?: boolean;
+  hint?: string;
+  error?: string;
+}
+
+const { name, label, value = "", options, maxLength, required = false, hint, error } = Astro.props;
+const id = `field-${name}`;
+const listId = `${id}-list`;
+const describedBy = [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(" ") || undefined;
+---
+<div class="min-w-0">
+  <label for={id} class="text-sm font-medium">
+    {label}{required && <span aria-hidden="true"> *</span>}
+  </label>
+  <input
+    id={id}
+    name={name}
+    type="text"
+    list={listId}
+    value={value ?? ""}
+    maxlength={maxLength}
+    required={required}
+    autocomplete="off"
+    aria-invalid={error ? "true" : undefined}
+    aria-describedby={describedBy}
+    class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+  />
+  <datalist id={listId}>
+    {options.map((option) => <option value={option} />)}
+  </datalist>
+  {hint && <p id={`${id}-hint`} class="mt-1 text-xs text-slate-600">{hint}</p>}
+  <div id={`${id}-error`}><FieldError message={error} /></div>
+</div>

@@ -1,8 +1,16 @@
+import {
+  cellToText,
+  isBlank,
+  parseDecimalCell,
+  parseIntegerCell,
+  parseRefCell,
+  type CellValue,
+} from "../bulk/cells";
 import { productInputSchema, variantInputSchema } from "../validation/catalog";
 import { createIssue, type IssueCode, type RawIssue } from "./issues";
 import { AMBIGUOUS_SIZES_MARKER, normalizeHeader, type FixedColumnKey, type WorkbookColumn } from "./workbook-format";
 
-export type CellValue = string | number | boolean | Date | null | undefined;
+export type { CellValue };
 export type Gender = "Dama" | "Caballero" | "Unisex";
 
 export const MAX_TEXT_LENGTH = 160;
@@ -37,22 +45,12 @@ export interface ParsedProductRow {
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; code: IssueCode; n?: number };
 
-function isBlank(cell: CellValue) {
-  return cell === null || cell === undefined || (typeof cell === "string" && cell.trim() === "");
-}
-
 function stripAccents(text: string) {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 function parseId(cell: CellValue): Parsed<number | null> {
-  if (isBlank(cell)) return { ok: true, value: null };
-  let value: number;
-  if (typeof cell === "number") value = cell;
-  else if (typeof cell === "string" && /^\d+$/.test(cell.trim())) value = Number(cell.trim());
-  else return { ok: false, code: "INVALID_ID" };
-  if (!Number.isInteger(value) || value <= 0 || value > MAX_QUANTITY) return { ok: false, code: "INVALID_ID" };
-  return { ok: true, value };
+  return parseRefCell(cell);
 }
 
 const TEXT_SCHEMAS = {
@@ -61,11 +59,6 @@ const TEXT_SCHEMAS = {
   brand: productInputSchema.shape.brand,
   color: productInputSchema.shape.color,
 } as const;
-
-function cellToText(cell: CellValue): Parsed<string> {
-  if (cell instanceof Date || typeof cell === "boolean") return { ok: false, code: "INVALID_TYPE" };
-  return { ok: true, value: String(cell).trim() };
-}
 
 function parseRequiredText(cell: CellValue, key: keyof typeof TEXT_SCHEMAS): Parsed<string> {
   if (isBlank(cell)) return { ok: false, code: "REQUIRED" };
@@ -98,26 +91,13 @@ function parseGender(cell: CellValue): Parsed<Gender> {
 
 function parsePrice(cell: CellValue): Parsed<string> {
   if (isBlank(cell)) return { ok: false, code: "REQUIRED" };
-  if (cell instanceof Date) return { ok: false, code: "INVALID_TYPE" };
-  if (typeof cell === "boolean") return { ok: false, code: "INVALID_PRICE" };
-
-  if (typeof cell === "number") {
-    if (!Number.isFinite(cell) || cell < 0) return { ok: false, code: "INVALID_PRICE" };
-    const cents = cell * 100;
-    if (Math.abs(cents - Math.round(cents)) > 1e-6 * Math.max(1, Math.abs(cents))) {
-      return { ok: false, code: "PRICE_DECIMALS" };
-    }
-    if (cell > MAX_PRICE + 0.005) return { ok: false, code: "PRICE_TOO_HIGH" };
-    return { ok: true, value: cell.toFixed(2) };
-  }
-
-  const match = /^(\d+)(?:[.,](\d+))?$/.exec(String(cell).trim());
-  if (!match) return { ok: false, code: "INVALID_PRICE" };
-  const [, integerPart, fraction = ""] = match;
-  if (fraction.length > 2) return { ok: false, code: "PRICE_DECIMALS" };
-  const integer = integerPart.replace(/^0+(?=\d)/, "");
-  if (integer.length > 8) return { ok: false, code: "PRICE_TOO_HIGH" };
-  return { ok: true, value: `${integer}.${fraction.padEnd(2, "0")}` };
+  const result = parseDecimalCell(cell, {
+    allowZero: true,
+    maxIntegerDigits: 8,
+    codes: { invalid: "INVALID_PRICE", decimals: "PRICE_DECIMALS", tooHigh: "PRICE_TOO_HIGH" },
+  });
+  if (!result.ok) return result;
+  return { ok: true, value: result.value as string };
 }
 
 function parseYesNo(cell: CellValue, defaultValue: boolean | null): Parsed<boolean> {
@@ -133,13 +113,9 @@ function parseYesNo(cell: CellValue, defaultValue: boolean | null): Parsed<boole
 }
 
 function parseQuantity(cell: CellValue): Parsed<number | null> {
-  if (isBlank(cell)) return { ok: true, value: null };
-  let value: number;
-  if (typeof cell === "number") value = cell;
-  else if (typeof cell === "string" && /^\d+$/.test(cell.trim())) value = Number(cell.trim());
-  else return { ok: false, code: "INVALID_QUANTITY" };
-  if (!Number.isInteger(value) || value < 0 || value > MAX_QUANTITY) return { ok: false, code: "INVALID_QUANTITY" };
-  const result = variantInputSchema.shape.quantity.safeParse(value);
+  const parsed = parseIntegerCell(cell, { min: 0, max: MAX_QUANTITY, code: "INVALID_QUANTITY" });
+  if (!parsed.ok || parsed.value === null) return parsed;
+  const result = variantInputSchema.shape.quantity.safeParse(parsed.value);
   if (!result.success) return { ok: false, code: "INVALID_QUANTITY" };
   return { ok: true, value: result.data };
 }

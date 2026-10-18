@@ -1,0 +1,173 @@
+---
+import AdminLayout from "../layout.astro";
+import { listClientsPage } from "../../../server/clients/service";
+import { db } from "../../../server/db";
+import { loadReferenceValues, referenceOptions } from "../../../server/reference/values";
+import { CLIENT_PAGE_SIZES } from "../../../server/validation/clients";
+import { formatMoney } from "../../../utils/money";
+
+const params = Object.fromEntries(Astro.url.searchParams);
+const [result, reference] = await Promise.all([listClientsPage(params), loadReferenceValues(db())]);
+const query = {
+  search: params.search?.trim() ?? "",
+  specialty: params.specialty ?? "",
+  city: params.city ?? "",
+  hospital: params.hospital ?? "",
+  clinic: params.clinic ?? "",
+  sex: params.sex ?? "",
+  size: params.size ?? "",
+  balance: params.balance ?? "",
+};
+const hasFilters = Object.values(query).some(Boolean);
+const flash = Astro.url.searchParams.get("eliminado") === "1" ? "Cliente eliminado" : "";
+
+const pageUrl = (page: number) => {
+  const url = new URL(Astro.url);
+  url.searchParams.set("page", String(page));
+  return `${url.pathname}?${url.searchParams.toString()}`;
+};
+const selectClass = "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm";
+const labelClass = "mb-1 block text-sm font-medium text-slate-700";
+const selects = [
+  { id: "specialty", label: "Especialidad", options: referenceOptions(reference, "specialty") },
+  { id: "city", label: "Ciudad", options: referenceOptions(reference, "city") },
+  { id: "hospital", label: "Hospital", options: referenceOptions(reference, "hospital") },
+  { id: "clinic", label: "Clínica", options: referenceOptions(reference, "clinic") },
+  { id: "size", label: "Talla", options: referenceOptions(reference, "size") },
+] as const;
+---
+<AdminLayout title="Clientes">
+  <section class="space-y-6">
+    <div role="status" aria-live="polite" class="sr-only">{flash}</div>
+    {flash && <p class="rounded-lg border border-green-300 bg-green-50 p-3 text-sm font-semibold text-green-900">{flash}</p>}
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold">Clientes</h1>
+        <p class="mt-1 text-slate-600">{result.totalClients} {result.totalClients === 1 ? "cliente" : "clientes"} en total.</p>
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-3">
+        <a href="/admin/clientes/carga-masiva" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold hover:bg-slate-50">Carga masiva</a>
+        <a href="/admin/clientes/nuevo" class="inline-flex min-h-[44px] items-center rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">Nuevo cliente</a>
+      </div>
+    </div>
+
+    <form method="get" class="grid gap-4 rounded-xl bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+      <div class="sm:col-span-2 lg:col-span-4">
+        <label for="search" class={labelClass}>Nombre o celular</label>
+        <input id="search" name="search" type="search" value={query.search} maxlength="160" class={selectClass} />
+      </div>
+      {selects.map((select) => (
+        <div>
+          <label for={select.id} class={labelClass}>{select.label}</label>
+          <select id={select.id} name={select.id} class={selectClass}>
+            <option value="" selected={!query[select.id]}>Todas</option>
+            {select.options.map((option) => <option value={option} selected={query[select.id] === option}>{option}</option>)}
+          </select>
+        </div>
+      ))}
+      <div>
+        <label for="sex" class={labelClass}>Sexo</label>
+        <select id="sex" name="sex" class={selectClass}>
+          <option value="" selected={!query.sex}>Todos</option>
+          <option value="Mujer" selected={query.sex === "Mujer"}>Mujer</option>
+          <option value="Hombre" selected={query.sex === "Hombre"}>Hombre</option>
+        </select>
+      </div>
+      <div>
+        <label for="balance" class={labelClass}>Saldo</label>
+        <select id="balance" name="balance" class={selectClass}>
+          <option value="" selected={!query.balance}>Todos</option>
+          <option value="pending" selected={query.balance === "pending"}>Con saldo pendiente</option>
+          <option value="overdue" selected={query.balance === "overdue"}>Con cuotas vencidas</option>
+        </select>
+      </div>
+      <div>
+        <label for="pageSize" class={labelClass}>Mostrar por página</label>
+        <select id="pageSize" name="pageSize" class={selectClass}>
+          {CLIENT_PAGE_SIZES.map((size) => <option value={size} selected={result.pageSize === size}>{size}</option>)}
+        </select>
+      </div>
+      <div class="flex items-end gap-2">
+        <button type="submit" class="min-h-[44px] rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Aplicar</button>
+        <a href="/admin/clientes" class="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Quitar filtros</a>
+      </div>
+    </form>
+
+    {hasFilters && (
+      <p class="text-sm text-slate-700" role="status">{result.total} {result.total === 1 ? "resultado" : "resultados"}</p>
+    )}
+
+    {result.totalClients === 0 ? (
+      <div class="space-y-3 rounded-xl bg-white p-6 text-slate-600">
+        <p>Todavía no hay clientes.</p>
+        <div class="flex flex-wrap gap-3">
+          <a href="/admin/clientes/nuevo" class="inline-flex min-h-[44px] items-center rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700">Registrar cliente</a>
+          <a href="/admin/clientes/carga-masiva" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50">Usar carga masiva</a>
+        </div>
+      </div>
+    ) : result.data.length === 0 ? (
+      <div class="space-y-3 rounded-xl bg-white p-6 text-slate-600">
+        <p>No hay clientes que coincidan.</p>
+        <a href="/admin/clientes" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50">Quitar filtros</a>
+      </div>
+    ) : (
+      <>
+        <div class="hidden overflow-x-auto rounded-xl bg-white shadow-sm md:block">
+          <table class="min-w-full text-left text-sm">
+            <thead class="border-b border-slate-200 text-slate-500">
+              <tr><th class="px-4 py-3">Nombre</th><th class="px-4 py-3">Celular</th><th class="px-4 py-3">Especialidad</th><th class="px-4 py-3">Ciudad</th><th class="px-4 py-3">Talla</th><th class="px-4 py-3">Saldo</th></tr>
+            </thead>
+            <tbody>
+              {result.data.map((client) => (
+                <tr class="border-b border-slate-100 last:border-0">
+                  <td class="px-4 py-3 font-medium"><a class="underline" href={`/admin/clientes/${client.ref}`}>{client.name}</a></td>
+                  <td class="px-4 py-3">{client.phone}</td>
+                  <td class="px-4 py-3">{client.specialty ?? "—"}</td>
+                  <td class="px-4 py-3">{client.city ?? "—"}</td>
+                  <td class="px-4 py-3">{client.size ?? "—"}</td>
+                  <td class="px-4 py-3">
+                    {Number(client.balanceUsd) > 0 ? (
+                      <span>{formatMoney(client.balanceUsd)}{client.hasOverdue && <span class="ml-2 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-800">Vencido</span>}</span>
+                    ) : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <ul class="space-y-3 md:hidden">
+          {result.data.map((client) => (
+            <li class="space-y-1 rounded-xl bg-white p-4 text-sm shadow-sm">
+              <a class="break-words text-base font-semibold underline" href={`/admin/clientes/${client.ref}`}>{client.name}</a>
+              <p>{client.phone}</p>
+              {(client.specialty || client.city || client.size) && (
+                <p class="text-slate-600">{[client.specialty, client.city, client.size ? `Talla ${client.size}` : null].filter(Boolean).join(" · ")}</p>
+              )}
+              {Number(client.balanceUsd) > 0 && (
+                <p class="font-semibold">Saldo {formatMoney(client.balanceUsd)}{client.hasOverdue && <span class="ml-2 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs text-red-800">Vencido</span>}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </>
+    )}
+
+    {result.totalPages > 1 && (
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 shadow-sm">
+        <p class="text-sm text-slate-600">Página {result.page} de {result.totalPages}</p>
+        <nav class="flex items-center gap-2" aria-label="Paginación de clientes">
+          {result.page > 1 ? (
+            <a href={pageUrl(result.page - 1)} class="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50">Anterior</a>
+          ) : (
+            <span aria-disabled="true" class="inline-flex min-h-[44px] items-center rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-400">Anterior</span>
+          )}
+          {result.page < result.totalPages ? (
+            <a href={pageUrl(result.page + 1)} class="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50">Siguiente</a>
+          ) : (
+            <span aria-disabled="true" class="inline-flex min-h-[44px] items-center rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-400">Siguiente</span>
+          )}
+        </nav>
+      </div>
+    )}
+  </section>
+</AdminLayout>
