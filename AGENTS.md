@@ -12,6 +12,7 @@ Catálogo web de uniformes médicos con vitrina pública, bolsa/WhatsApp y panel
 - El dominio vive en `src/server`; las rutas y endpoints en `src/pages`; esquema/cliente DB en `src/db`; operaciones de migración en `scripts/`.
 - Zod valida entradas. La autenticación usa sesiones server-side revocables, cookies HttpOnly/Secure/SameSite y controles Origin/CSRF; no hay registro público ni secretos en el cliente.
 - Strapi solo es fuente temporal para la migración: los scripts deben ser paginados, reanudables, idempotentes y generar verificación antes del corte.
+- Las hojas de cálculo se leen con `read-excel-file` y se generan con `write-excel-file` más `@onparallel/write-excel-file-data-validation`, fijado en la versión exacta `1.0.2` (se revisa su código antes de actualizarla). Los archivos subidos nunca se almacenan; la vista previa de la carga masiva usa un token firmado ligado a la sesión.
 - Vitest cubre unitarias/integración y Playwright las pruebas de navegador; `astro check` forma parte del build.
 
 ## Desarrollo local
@@ -41,6 +42,7 @@ Para migración controlada: `npm run migrate:strapi -- --dry-run` y luego `npm r
 - PostgreSQL manda para productos, variantes y existencias; un producto es disponible solo si está publicado, activo y tiene alguna variante con stock positivo.
 - Preservar los identificadores `legacy_id`/`legacy_document_id` y las URLs públicas existentes; no hacer llamadas runtime a Strapi.
 - Proteger cada ruta `/admin/**` y `/api/admin/**` en servidor; validar mutaciones y entradas, redactor errores/secrets y no procesar pagos ni ventas confirmadas.
+- La carga masiva de inventario es de todo o nada y nunca elimina productos, tallas ni fotos; la validación del servidor es la única fuente de verdad.
 - Añadir migraciones versionadas y pruebas para cambios de esquema o reglas críticas; conservar estados de carga, vacío y error, accesibilidad y responsive.
 
 Las reglas de producto viven en .specify/memory/constitution.md y el estado del producto en specs/README.md

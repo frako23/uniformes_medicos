@@ -53,6 +53,7 @@ PUBLIC_SITE_URL=http://localhost:4321
 | `/cart` | Bolsa y preparación del pedido por WhatsApp. |
 | `/admin/login` | Inicio de sesión del propietario. |
 | `/admin/productos` | Gestión de productos, stock e imágenes. |
+| `/admin/productos/carga-masiva` | Carga y edición masiva de inventario con plantilla de Excel. |
 | `POST /api/cart-details` | Resuelve IDs numéricos contra PostgreSQL. |
 
 ## Comandos

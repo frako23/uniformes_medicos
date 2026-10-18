@@ -1,0 +1,484 @@
+---
+interface Props {
+  csrfToken: string;
+}
+
+const { csrfToken } = Astro.props;
+---
+<div id="bulk-upload" data-csrf={csrfToken} class="space-y-6">
+  <div id="bulk-live" class="sr-only" role="status" aria-live="polite"></div>
+
+  <section aria-labelledby="bulk-download-title" class="space-y-4 rounded-xl bg-white p-4 shadow-sm sm:p-6">
+    <h2 id="bulk-download-title" class="text-xl font-semibold">1. Descargar el archivo</h2>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div class="space-y-2">
+        <a href="/api/admin/inventory/template" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Descargar plantilla vacía</a>
+        <p class="text-sm text-slate-600">Para dar de alta productos nuevos: una fila por producto, sin ID.</p>
+      </div>
+      <div class="space-y-2">
+        <a href="/api/admin/inventory/export" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Descargar inventario actual</a>
+        <p class="text-sm text-slate-600">Para editar existencias, precios y demás datos de los productos que ya tienes.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="bulk-upload-title" class="space-y-4 rounded-xl bg-white p-4 shadow-sm sm:p-6">
+    <h2 id="bulk-upload-title" class="text-xl font-semibold">2. Subir el archivo</h2>
+    <div>
+      <label for="bulk-file" class="mb-1 block text-sm font-medium text-slate-700">Archivo de Excel</label>
+      <input id="bulk-file" type="file" accept=".xlsx" aria-describedby="bulk-file-help" class="block min-h-[44px] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white" />
+      <p id="bulk-file-help" class="mt-1 text-sm text-slate-600">.xlsx de hasta 4 MB y 5.000 productos.</p>
+    </div>
+    <button id="bulk-validate" type="button" disabled class="min-h-[44px] rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900">Validar archivo</button>
+  </section>
+
+  <div id="bulk-message" hidden class="rounded-xl border p-4 text-sm"></div>
+
+  <section id="bulk-preview" hidden aria-labelledby="bulk-preview-title" class="space-y-5 rounded-xl bg-white p-4 shadow-sm sm:p-6">
+    <h2 id="bulk-preview-title" tabindex="-1" class="text-xl font-semibold focus:outline-none">3. Vista previa</h2>
+    <div id="bulk-preview-body" class="space-y-5"></div>
+  </section>
+
+  <section id="bulk-result" hidden aria-labelledby="bulk-result-title" class="space-y-4 rounded-xl bg-white p-4 shadow-sm sm:p-6">
+    <h2 id="bulk-result-title" tabindex="-1" class="text-xl font-semibold focus:outline-none">Cambios aplicados</h2>
+    <div id="bulk-result-body" class="space-y-4"></div>
+  </section>
+</div>
+
+<script>
+  type Issue = { severity: "error" | "warning" | "notice"; code: string; column: string | null; message: string; rows: string[]; count: number };
+  type Change = {
+    row: number;
+    action: "create" | "update";
+    id: number | null;
+    label: string;
+    fields: Array<{ field: string; label: string; from: string | null; to: string | null }>;
+    sizes: Array<{ label: string; from: number | null; to: number }>;
+    availability: { from: boolean | null; to: boolean };
+    warnings: string[];
+  };
+  type Preview = {
+    status: "ready" | "invalid" | "no_changes";
+    summary: { newProducts: number; updatedProducts: number; unchangedProducts: number; newSizes: number; changedStocks: number; errors: number; warnings: number };
+    issues: Issue[];
+    changes: Change[];
+    preview: { token: string; expiresAt: string } | null;
+  };
+  type AppliedProduct = { id: number; documentId: string; label: string; editUrl: string };
+  type Applied = {
+    summary: { createdProducts: number; updatedProducts: number; createdSizes: number; changedStocks: number };
+    created: AppliedProduct[];
+    updated: AppliedProduct[];
+  };
+  type Action = "validate" | "apply";
+
+  const MAX_BYTES = 4 * 1024 * 1024;
+  const PAGE_SIZE = 50;
+  const WARNING_LABELS: Record<string, string> = {
+    PUBLISHED_WITHOUT_IMAGES: "Sin fotos",
+    PUBLISHED_WITHOUT_STOCK: "Sin existencias",
+    BECOMES_AVAILABLE: "Pasará a estar disponible",
+    BECOMES_UNAVAILABLE: "Dejará de estar disponible",
+    MODIFIED_AFTER_DOWNLOAD: "Cambió después de la descarga",
+    POSSIBLE_DUPLICATE: "Posible duplicado",
+    NEW_VALUE: "Valor nuevo",
+  };
+
+  const root = document.querySelector<HTMLElement>("#bulk-upload");
+  const fileInput = document.querySelector<HTMLInputElement>("#bulk-file");
+  const validateButton = document.querySelector<HTMLButtonElement>("#bulk-validate");
+  const messageBox = document.querySelector<HTMLElement>("#bulk-message");
+  const live = document.querySelector<HTMLElement>("#bulk-live");
+  const previewSection = document.querySelector<HTMLElement>("#bulk-preview");
+  const previewTitle = document.querySelector<HTMLElement>("#bulk-preview-title");
+  const previewBody = document.querySelector<HTMLElement>("#bulk-preview-body");
+  const resultSection = document.querySelector<HTMLElement>("#bulk-result");
+  const resultTitle = document.querySelector<HTMLElement>("#bulk-result-title");
+  const resultBody = document.querySelector<HTMLElement>("#bulk-result-body");
+
+  const buttonClass = "min-h-[44px] rounded-lg px-4 py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-60";
+  const primaryClass = `${buttonClass} bg-slate-900 text-white hover:bg-slate-700`;
+  const secondaryClass = `${buttonClass} border border-slate-300 bg-white hover:bg-slate-50`;
+
+  let selectedFile: File | null = null;
+  let currentPreview: Preview | null = null;
+  let busy = false;
+  let lastAction: Action | null = null;
+  let expiryTimer: number | undefined;
+  let confirmButton: HTMLButtonElement | null = null;
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text?: string, attrs: Record<string, string> = {}) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
+    return node;
+  }
+
+  function announce(text: string) {
+    if (live) live.textContent = text;
+  }
+
+  function setBusy(value: boolean) {
+    busy = value;
+    if (validateButton) validateButton.disabled = value || !selectedFile;
+    if (fileInput) fileInput.disabled = value;
+    root?.querySelectorAll<HTMLButtonElement>("[data-bulk-action]").forEach((button) => (button.disabled = value));
+    if (confirmButton && value) confirmButton.disabled = true;
+  }
+
+  function clearMessage() {
+    if (!messageBox) return;
+    messageBox.hidden = true;
+    messageBox.replaceChildren();
+    messageBox.removeAttribute("role");
+  }
+
+  function showMessage(kind: "error" | "info" | "success", text: string, actions: HTMLElement[] = [], alert = true) {
+    if (!messageBox) return;
+    const tone = kind === "error" ? "border-red-300 bg-red-50 text-red-900" : kind === "success" ? "border-green-300 bg-green-50 text-green-900" : "border-slate-300 bg-white text-slate-800";
+    messageBox.className = `space-y-3 rounded-xl border p-4 text-sm ${tone}`;
+    messageBox.replaceChildren(el("p", "font-semibold", text));
+    if (actions.length) {
+      const row = el("div", "flex flex-wrap gap-3");
+      row.append(...actions);
+      messageBox.append(row);
+    }
+    if (alert) messageBox.setAttribute("role", "alert");
+    else messageBox.removeAttribute("role");
+    messageBox.hidden = false;
+    if (alert) {
+      messageBox.setAttribute("tabindex", "-1");
+      messageBox.focus();
+    }
+  }
+
+  function actionButton(label: string, handler: () => void, primary = true) {
+    const button = el("button", primary ? primaryClass : secondaryClass, label, { type: "button", "data-bulk-action": "" });
+    button.addEventListener("click", handler);
+    return button;
+  }
+
+  function hidePreview() {
+    window.clearTimeout(expiryTimer);
+    currentPreview = null;
+    confirmButton = null;
+    if (previewSection) previewSection.hidden = true;
+    previewBody?.replaceChildren();
+  }
+
+  function hideResult() {
+    if (resultSection) resultSection.hidden = true;
+    resultBody?.replaceChildren();
+  }
+
+  function resetAll() {
+    hidePreview();
+    hideResult();
+    clearMessage();
+    selectedFile = null;
+    if (fileInput) fileInput.value = "";
+    setBusy(false);
+  }
+
+  const money = (value: string | null) => (value === null ? "sin valor" : value);
+  function formatValue(field: string, value: string | null) {
+    if (value === null) return "sin SKU";
+    return field === "price" ? `$${money(value)}` : value;
+  }
+
+  function formatRows(rows: string[]) {
+    if (!rows.length) return "";
+    const parts = rows.map((range) => range.replace("-", "–"));
+    const label = rows.length === 1 && !rows[0].includes("-") ? "Fila" : "Filas";
+    if (parts.length === 1) return `${label} ${parts[0]}`;
+    return `${label} ${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`;
+  }
+
+  function issueList(issues: Issue[], tone: "error" | "warning" | "notice") {
+    const list = el("ul", "space-y-2");
+    for (const issue of issues) {
+      const item = el("li", "rounded-lg border p-3 text-sm");
+      item.classList.add(...(tone === "error" ? ["border-red-200", "bg-red-50", "text-red-900"] : tone === "warning" ? ["border-amber-200", "bg-amber-50", "text-amber-900"] : ["border-slate-200", "bg-slate-50", "text-slate-800"]));
+      const prefix = tone === "error" ? "Error" : tone === "warning" ? "Advertencia" : "Aviso";
+      const head = [prefix, issue.column ? `Columna “${issue.column}”` : null, issue.rows.length ? formatRows(issue.rows) : null].filter(Boolean).join(" · ");
+      item.append(el("p", "font-semibold", head), el("p", "mt-1", issue.message));
+      list.append(item);
+    }
+    return list;
+  }
+
+  function summaryGrid(summary: Preview["summary"]) {
+    const entries: Array<[string, number]> = [
+      ["Productos nuevos", summary.newProducts],
+      ["Productos con cambios", summary.updatedProducts],
+      ["Sin cambios", summary.unchangedProducts],
+      ["Tallas nuevas", summary.newSizes],
+      ["Existencias modificadas", summary.changedStocks],
+      ["Errores", summary.errors],
+      ["Advertencias", summary.warnings],
+    ];
+    const grid = el("dl", "grid grid-cols-2 gap-3 sm:grid-cols-4");
+    for (const [label, value] of entries) {
+      const cell = el("div", "rounded-lg border border-slate-200 p-3");
+      cell.append(el("dt", "text-xs font-medium text-slate-600", label), el("dd", "text-2xl font-bold", String(value)));
+      grid.append(cell);
+    }
+    return grid;
+  }
+
+  function changeCard(change: Change) {
+    const card = el("li", "space-y-2 rounded-lg border border-slate-200 p-3 text-sm");
+    const idText = change.action === "create" ? "Nuevo" : `ID ${change.id}`;
+    card.append(el("p", "break-words font-semibold", `Fila ${change.row} · ${idText} · ${change.label}`));
+    const lines = el("ul", "space-y-1");
+    for (const field of change.fields) {
+      const text = change.action === "create"
+        ? `${field.label}: ${formatValue(field.field, field.to)}`
+        : `${field.label}: ${formatValue(field.field, field.from)} → ${formatValue(field.field, field.to)}`;
+      lines.append(el("li", "break-words", text));
+    }
+    for (const size of change.sizes) {
+      const text = change.action === "create"
+        ? `${size.label}: ${size.to}`
+        : `${size.label}: ${size.from === null ? "nueva" : size.from} → ${size.to}`;
+      lines.append(el("li", "break-words", text));
+    }
+    card.append(lines);
+    if (change.availability.from !== null && change.availability.from !== change.availability.to) {
+      card.append(el("p", "font-medium", change.availability.to ? "Pasará a estar disponible" : "Dejará de estar disponible"));
+    }
+    const badges = change.warnings.filter((code) => WARNING_LABELS[code] && !(code === "BECOMES_AVAILABLE" || code === "BECOMES_UNAVAILABLE"));
+    if (badges.length) {
+      const row = el("div", "flex flex-wrap gap-2");
+      for (const code of badges) row.append(el("span", "rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900", `⚠ ${WARNING_LABELS[code]}`));
+      card.append(row);
+    }
+    return card;
+  }
+
+  function changeSection(title: string, changes: Change[], open: boolean) {
+    const details = el("details", "rounded-lg border border-slate-200");
+    details.open = open;
+    details.append(el("summary", "min-h-[44px] cursor-pointer px-3 py-3 font-semibold", `${title} (${changes.length})`));
+    const body = el("div", "space-y-3 p-3");
+    const list = el("ul", "space-y-3");
+    body.append(list);
+    let shown = 0;
+    const more = el("button", secondaryClass, "Mostrar más", { type: "button" });
+    const renderMore = () => {
+      for (const change of changes.slice(shown, shown + PAGE_SIZE)) list.append(changeCard(change));
+      shown = Math.min(changes.length, shown + PAGE_SIZE);
+      more.hidden = shown >= changes.length;
+    };
+    more.addEventListener("click", renderMore);
+    body.append(more);
+    renderMore();
+    details.append(body);
+    return details;
+  }
+
+  const timeFormat = new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" });
+
+  function renderPreview(data: Preview) {
+    if (!previewSection || !previewBody) return;
+    hideResult();
+    currentPreview = data;
+    previewBody.replaceChildren(summaryGrid(data.summary));
+    const errors = data.issues.filter((issue) => issue.severity === "error");
+    const warnings = data.issues.filter((issue) => issue.severity === "warning");
+    const notices = data.issues.filter((issue) => issue.severity === "notice");
+
+    if (errors.length) {
+      const alert = el("div", "space-y-3", undefined, { role: "alert", tabindex: "-1", id: "bulk-errors" });
+      alert.append(el("p", "text-base font-bold text-red-900", `Corrige ${data.summary.errors} ${data.summary.errors === 1 ? "error" : "errores"} y vuelve a subir el archivo`), issueList(errors, "error"));
+      previewBody.append(alert);
+    }
+    if (warnings.length) {
+      const block = el("div", "space-y-2");
+      block.append(el("h3", "font-semibold", "Advertencias (no impiden confirmar)"), issueList(warnings, "warning"));
+      previewBody.append(block);
+    }
+    if (notices.length) previewBody.append(issueList(notices, "notice"));
+
+    if (data.status === "no_changes") {
+      previewBody.append(el("p", "rounded-lg border border-slate-200 bg-slate-50 p-3 font-medium", "El archivo no contiene cambios respecto del inventario actual."));
+    }
+    if (data.status === "ready") {
+      const created = data.changes.filter((change) => change.action === "create");
+      const updated = data.changes.filter((change) => change.action === "update");
+      if (created.length) previewBody.append(changeSection("Productos nuevos", created, true));
+      if (updated.length) previewBody.append(changeSection("Productos con cambios", updated, !created.length));
+      renderConfirm(data);
+    }
+    previewSection.hidden = false;
+    const target = errors.length ? previewBody.querySelector<HTMLElement>("#bulk-errors") : previewTitle;
+    target?.focus();
+    announce(data.status === "invalid" ? `El archivo tiene ${data.summary.errors} errores.` : data.status === "no_changes" ? "El archivo no contiene cambios." : "Vista previa lista para confirmar.");
+  }
+
+  function renderConfirm(data: Preview) {
+    if (!previewBody || !data.preview) return;
+    const expiresAt = new Date(data.preview.expiresAt);
+    const bar = el("div", "space-y-3 border-t border-slate-200 pt-4");
+    const note = el("p", "text-sm text-slate-600", `Esta vista previa vence a las ${timeFormat.format(expiresAt)}.`, { id: "bulk-expiry-note" });
+    const row = el("div", "flex flex-wrap gap-3");
+    confirmButton = el("button", primaryClass, "Confirmar y aplicar cambios", { type: "button", "data-bulk-action": "" });
+    confirmButton.addEventListener("click", () => void apply());
+    row.append(confirmButton, actionButton("Cancelar", resetAll, false));
+    bar.append(note, row);
+    previewBody.append(bar);
+
+    window.clearTimeout(expiryTimer);
+    const remaining = expiresAt.getTime() - Date.now();
+    const expire = () => {
+      if (confirmButton) confirmButton.disabled = true;
+      note.textContent = "La vista previa venció; valida el archivo de nuevo.";
+      note.className = "text-sm font-semibold text-red-800";
+      announce("La vista previa venció; valida el archivo de nuevo.");
+    };
+    if (remaining <= 0) expire();
+    else expiryTimer = window.setTimeout(expire, Math.min(remaining, 2_147_000_000));
+  }
+
+  function renderResult(data: Applied) {
+    if (!resultSection || !resultBody) return;
+    hidePreview();
+    clearMessage();
+    resultBody.replaceChildren();
+    const { summary } = data;
+    const list = el("ul", "list-disc space-y-1 pl-5 text-sm");
+    list.append(
+      el("li", "", `Productos creados: ${summary.createdProducts}`),
+      el("li", "", `Productos actualizados: ${summary.updatedProducts}`),
+      el("li", "", `Tallas creadas: ${summary.createdSizes}`),
+      el("li", "", `Existencias modificadas: ${summary.changedStocks}`),
+    );
+    resultBody.append(list);
+
+    const productList = (title: string, products: AppliedProduct[], linkLabel: string) => {
+      if (!products.length) return;
+      const details = el("details", "rounded-lg border border-slate-200");
+      details.append(el("summary", "min-h-[44px] cursor-pointer px-3 py-3 font-semibold", `${title} (${products.length})`));
+      const ul = el("ul", "space-y-2 p-3");
+      for (const product of products) {
+        const item = el("li", "flex flex-wrap items-center justify-between gap-2 text-sm");
+        const link = el("a", "inline-flex min-h-[44px] items-center font-semibold underline", linkLabel, { href: product.editUrl });
+        link.setAttribute("aria-label", `${linkLabel}: ${product.label}`);
+        item.append(el("span", "break-words", `ID ${product.id} · ${product.label}`), link);
+        ul.append(item);
+      }
+      details.append(ul);
+      resultBody.append(details);
+    };
+    productList("Productos creados", data.created, "Agregar fotos");
+    productList("Productos actualizados", data.updated, "Editar");
+
+    const actions = el("div", "flex flex-wrap gap-3");
+    const view = el("a", `${primaryClass} inline-flex items-center`, "Ver productos", { href: "/admin/productos" });
+    actions.append(view, actionButton("Hacer otra carga", resetAll, false));
+    resultBody.append(actions);
+    resultSection.hidden = false;
+    resultTitle?.focus();
+    announce("Cambios aplicados.");
+  }
+
+  function sessionExpired() {
+    hidePreview();
+    showMessage("error", "Tu sesión expiró. Inicia sesión y vuelve a subir el archivo.", [
+      el("a", `${primaryClass} inline-flex items-center`, "Ir a iniciar sesión", { href: "/admin/login" }),
+    ]);
+  }
+
+  function templateLink() {
+    return el("a", `${secondaryClass} inline-flex items-center`, "Descargar plantilla", { href: "/api/admin/inventory/template" });
+  }
+
+  async function send(action: Action) {
+    if (busy || !selectedFile) return;
+    lastAction = action;
+    clearMessage();
+    setBusy(true);
+    const form = new FormData();
+    form.append("file", selectedFile, selectedFile.name);
+    if (action === "apply" && currentPreview?.preview) form.append("previewToken", currentPreview.preview.token);
+    announce(action === "validate" ? "Validando archivo…" : "Aplicando cambios…");
+    if (action === "validate") {
+      hidePreview();
+      hideResult();
+      showMessage("info", "Validando archivo…", [], false);
+    } else {
+      showMessage("info", "Aplicando cambios… No cierres la página.", [], false);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`/api/admin/inventory/${action === "validate" ? "preview" : "apply"}`, {
+        method: "POST",
+        headers: { "x-csrf-token": root?.dataset.csrf ?? "" },
+        body: form,
+      });
+    } catch {
+      setBusy(false);
+      failure();
+      return;
+    }
+
+    let payload: any = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+    setBusy(false);
+    clearMessage();
+
+    if (response.status === 401) return sessionExpired();
+    if (response.status === 409) {
+      hidePreview();
+      showMessage("error", payload?.error?.message ?? "El inventario cambió desde la vista previa. No se aplicó ningún cambio; valida el archivo de nuevo.", [
+        actionButton("Validar de nuevo", () => void send("validate")),
+      ]);
+      announce("No se aplicó ningún cambio.");
+      return;
+    }
+    if (response.status === 422) {
+      hidePreview();
+      showMessage("error", payload?.error?.fields?.file ?? payload?.error?.fields?.previewToken ?? payload?.error?.message ?? "No se pudo leer el archivo.", [templateLink()]);
+      return;
+    }
+    if (!response.ok || !payload) return failure();
+    if (action === "validate") renderPreview(payload as Preview);
+    else renderResult(payload as Applied);
+  }
+
+  function failure() {
+    hidePreview();
+    showMessage("error", "No se aplicó ningún cambio. Inténtalo de nuevo.", [
+      actionButton("Reintentar", () => void send(lastAction ?? "validate")),
+    ]);
+    announce("No se aplicó ningún cambio.");
+  }
+
+  const apply = () => send("apply");
+
+  fileInput?.addEventListener("change", () => {
+    hidePreview();
+    hideResult();
+    clearMessage();
+    const file = fileInput.files?.[0] ?? null;
+    selectedFile = null;
+    if (file && !/\.xlsx$/i.test(file.name)) {
+      fileInput.value = "";
+      showMessage("error", "Elige un archivo de Excel con extensión .xlsx.");
+    } else if (file && file.size > MAX_BYTES) {
+      fileInput.value = "";
+      showMessage("error", "El archivo supera 4 MB. Divide el inventario en varios archivos.");
+    } else if (file) {
+      selectedFile = file;
+    }
+    if (validateButton) validateButton.disabled = !selectedFile;
+  });
+
+  validateButton?.addEventListener("click", () => void send("validate"));
+</script>

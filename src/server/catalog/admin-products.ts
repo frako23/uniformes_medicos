@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { products, productVariants } from "../../db/schema";
 import { db, withTransaction, type DbOrTransaction } from "../db";
 import { HttpError } from "../http/errors";
@@ -151,6 +151,31 @@ export async function listAdminProducts(input: {
   };
 }
 
+/**
+ * Lleva la secuencia de `products.legacy_id` al máximo valor existente sin retrocederla.
+ * La importación desde Strapi inserta identificadores explícitos que no adelantan la secuencia.
+ */
+export const SYNC_LEGACY_ID_SEQUENCE_SQL = `SELECT setval(s.seq, s.value, true)
+FROM (
+  SELECT
+    pg_get_serial_sequence('products', 'legacy_id') AS seq,
+    GREATEST(
+      (SELECT COALESCE(MAX(legacy_id), 0) FROM products),
+      COALESCE(
+        (
+          SELECT last_value FROM pg_sequences
+          WHERE format('%I.%I', schemaname, sequencename)::regclass = pg_get_serial_sequence('products', 'legacy_id')::regclass
+        ),
+        0
+      )
+    ) AS value
+) AS s
+WHERE s.value > 0`;
+
+export async function ensureProductLegacyIdSequence(transaction: DbOrTransaction) {
+  await transaction.execute(sql.raw(SYNC_LEGACY_ID_SEQUENCE_SQL));
+}
+
 export async function createProduct(input: unknown) {
   const parsed = productInputSchema.safeParse(input);
   if (!parsed.success) throw new HttpError(422, "VALIDATION_ERROR", "Revisa los campos indicados.", fieldErrors(parsed.error));
@@ -158,6 +183,7 @@ export async function createProduct(input: unknown) {
   const publicId = values.legacyDocumentId ?? crypto.randomUUID();
 
   const created = await withTransaction(async (transaction) => {
+    await ensureProductLegacyIdSequence(transaction);
     const [product] = await transaction
       .insert(products)
       .values({

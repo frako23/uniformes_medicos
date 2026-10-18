@@ -39,6 +39,7 @@ const pageUrl = (page: number) => {
         <p class="mt-1 text-slate-600">{result.total} {result.total === 1 ? "producto" : "productos"} en total.</p>
       </div>
       <div class="flex flex-wrap items-center justify-end gap-3">
+        <a href="/admin/productos/carga-masiva" class="rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold hover:bg-slate-50">Carga masiva</a>
         <a href="/admin/productos/nuevo" class="rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white hover:bg-slate-700">Nuevo producto</a>
       </div>
     </div>

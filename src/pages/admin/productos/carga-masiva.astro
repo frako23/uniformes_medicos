@@ -1,0 +1,14 @@
+---
+import AdminLayout from "../layout.astro";
+import BulkInventoryUpload from "../../../components/admin/BulkInventoryUpload.astro";
+---
+<AdminLayout title="Carga masiva">
+  <section class="space-y-6">
+    <div>
+      <a href="/admin/productos" class="inline-flex min-h-[44px] items-center text-sm font-semibold underline">← Volver a productos</a>
+      <h1 class="mt-1 text-3xl font-bold">Carga masiva de inventario</h1>
+      <p class="mt-1 text-slate-600">Crea productos nuevos o actualiza existencias, precios y demás datos con un archivo de Excel. Revisarás los cambios antes de aplicarlos.</p>
+    </div>
+    <BulkInventoryUpload csrfToken={Astro.locals.csrfToken ?? ""} />
+  </section>
+</AdminLayout>
