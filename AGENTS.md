@@ -43,6 +43,7 @@ Para migración controlada: `npm run migrate:strapi -- --dry-run` y luego `npm r
 - Preservar los identificadores `legacy_id`/`legacy_document_id` y las URLs públicas existentes; no hacer llamadas runtime a Strapi.
 - Proteger cada ruta `/admin/**` y `/api/admin/**` en servidor; validar mutaciones y entradas, redactor errores/secrets y no procesar pagos ni ventas confirmadas.
 - La carga masiva de inventario es de todo o nada y nunca elimina productos, tallas ni fotos; la validación del servidor es la única fuente de verdad.
+- Mostrar todo monto con `formatMoney` (`src/utils/money.ts`): `$` delante, punto de miles, coma decimal y 2 decimales (`$1.234,50`).
 - Añadir migraciones versionadas y pruebas para cambios de esquema o reglas críticas; conservar estados de carga, vacío y error, accesibilidad y responsive.
 
 Las reglas de producto viven en .specify/memory/constitution.md y el estado del producto en specs/README.md

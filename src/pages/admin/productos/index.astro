@@ -8,6 +8,7 @@ import {
   normalizeAdminProductPageSize,
   normalizeAdminProductSort,
 } from "../../../server/catalog/admin-products";
+import { formatMoney } from "../../../utils/money";
 
 const requestedPage = Number(Astro.url.searchParams.get("page") ?? 1);
 const requestedPageSize = Number(Astro.url.searchParams.get("pageSize") ?? 20);
@@ -94,7 +95,7 @@ const pageUrl = (page: number) => {
               <tr class="border-b border-slate-100 last:border-0">
                 <td class="px-4 py-3 font-medium">{product.Tipo}</td>
                 <td class="px-4 py-3">{product.Marca}</td>
-                <td class="px-4 py-3">${product.Precio.toFixed(2)}</td>
+                <td class="px-4 py-3">{formatMoney(product.Precio)}</td>
                 <td class="px-4 py-3">{product.isAvailable ? "Disponible" : "No disponible"}</td>
                 <td class="px-4 py-3 text-right"><a class="font-semibold underline" href={`/admin/productos/${product.documentId}`}>Editar</a></td>
               </tr>

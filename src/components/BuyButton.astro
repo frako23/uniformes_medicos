@@ -1,4 +1,6 @@
 ---
+import { formatMoney } from "../utils/money";
+
 const { product } = Astro.props;
 
 // Construimos el mensaje con saltos de línea naturales
@@ -7,7 +9,7 @@ const message = `¡Hola! Me interesa el siguiente producto:
 *${product.Tipo}*
 Marca: ${product.Marca}
 Color: ${product.Color}
-Precio: $${product.Precio}`;
+Precio: ${formatMoney(product.Precio)}`;
 
 // Codificamos para que los espacios y saltos de línea funcionen en la URL
 const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(message)}`;

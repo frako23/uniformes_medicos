@@ -46,6 +46,7 @@ const { csrfToken } = Astro.props;
 </div>
 
 <script>
+  import { formatMoney } from "../../utils/money";
   type Issue = { severity: "error" | "warning" | "notice"; code: string; column: string | null; message: string; rows: string[]; count: number };
   type Change = {
     row: number;
@@ -181,10 +182,9 @@ const { csrfToken } = Astro.props;
     setBusy(false);
   }
 
-  const money = (value: string | null) => (value === null ? "sin valor" : value);
   function formatValue(field: string, value: string | null) {
-    if (value === null) return "sin SKU";
-    return field === "price" ? `$${money(value)}` : value;
+    if (value === null) return field === "price" ? "sin valor" : "sin SKU";
+    return field === "price" ? formatMoney(value) : value;
   }
 
   function formatRows(rows: string[]) {

@@ -1,9 +1,10 @@
 ---
 import AdminLayout from "./layout.astro";
 import { getInventoryStats } from "../../server/catalog/admin-stats";
+import { formatMoney } from "../../utils/money";
 
 const stats = await getInventoryStats();
-const money = new Intl.NumberFormat("es", { style: "currency", currency: "USD" });
+const money = { format: formatMoney };
 const number = new Intl.NumberFormat("es");
 const groups = [
   { title: "Por tipo de mercancía", firstColumn: "Tipo", rows: stats.byType },

@@ -2,6 +2,7 @@
 import SizeStock from "../../components/SizeStock.astro";
 import Layout from "../../layouts/Layout.astro";
 import { getPublicProduct } from "../../server/catalog/public-products";
+import { formatMoney } from "../../utils/money";
 import type { Producto } from "../../utils/types";
 
 const { id } = Astro.params;
@@ -100,7 +101,7 @@ const whatsappUrl = `https://wa.me/584241468579?text=${encodeURIComponent(messag
           {producto.Marca}
         </h1>
         <p class="text-3xl font-bold text-[#005d90] mb-2">
-          ${producto.Precio.toFixed(2)}
+          {formatMoney(producto.Precio)}
         </p>
 
         <SizeStock tallaStock={producto.Talla} />

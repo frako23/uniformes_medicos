@@ -1,12 +1,13 @@
 <!--
 ## Sync Impact Report
-- Version change: sin versión previa → 1.0.0 (primera constitución del proyecto).
-- Principios incorporados: inventario confiable; compra sencilla; diseño accesible;
-  rendimiento y resiliencia; seguridad y calidad.
-- Secciones añadidas: Restricciones de producto y plataforma; Flujo de desarrollo
-  y puertas de calidad.
-- Secciones eliminadas: ninguna.
+- Version change: 1.0.0 → 1.1.0 (principio añadido).
+- Principios incorporados: VI. Formato uniforme de montos en dólares.
+- Secciones añadidas: ninguna. Secciones eliminadas: ninguna.
+- Plantillas: sin cambios necesarios.
 - TODO pendiente: confirmar la fecha original de ratificación.
+
+Historial: 1.0.0 — primera constitución (inventario confiable; compra sencilla;
+diseño accesible; rendimiento y resiliencia; seguridad y calidad).
 -->
 
 # Constitución de Uniformes Médicos
@@ -83,6 +84,21 @@ concreta del negocio y quedar documentada.
 Razón: el acceso privado al panel protege la gestión del negocio, mientras que
 la validación de cambios mantiene la coherencia entre inventario y vitrina.
 
+### VI. Formato uniforme de montos en dólares
+
+Todo monto en dólares que se muestre a una persona (vitrina, bolsa, mensajes de
+WhatsApp, panel, estadísticas y resultados de la carga masiva) DEBE llevar el
+símbolo `$` delante de la cantidad, usar el punto como separador de miles, la
+coma como separador decimal y mostrar siempre 2 decimales, por ejemplo
+`$1.234,50` o `$0,00`. Los montos negativos colocan el signo antes del símbolo
+(`-$1.234,50`). El código DEBE usar la utilidad compartida `formatMoney`
+(`src/utils/money.ts`) en lugar de formatear a mano. Este principio aplica a la
+presentación: los valores almacenados, los campos de entrada numéricos y los
+archivos de intercambio conservan su representación técnica (punto decimal).
+
+Razón: un formato único evita confusiones al comparar precios y totales en toda
+la aplicación.
+
 ## Restricciones de producto y plataforma
 
 - PostgreSQL DEBE ser la fuente de verdad para productos, variantes y existencias.
@@ -146,4 +162,4 @@ PATCH para aclaraciones sin cambio semántico. La fecha de última enmienda se
 actualiza en cada cambio aceptado. La fecha de ratificación inicial DEBE
 confirmarse cuando la constitución sea adoptada formalmente.
 
-**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE): confirmar fecha de adopción | **Last Amended**: 2026-10-01
+**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): confirmar fecha de adopción | **Last Amended**: 2026-10-18

@@ -42,7 +42,7 @@ import Layout from "../layouts/Layout.astro";
         <div class="space-y-3 text-sm">
           <div class="flex justify-between">
             <span class="text-slate-500">Subtotal</span>
-            <span class="font-bold" id="subtotal">$0.00</span>
+            <span class="font-bold" id="subtotal">$0,00</span>
           </div>
           <div
             class="flex justify-between border-t border-slate-200 pt-4 items-baseline"
@@ -50,7 +50,7 @@ import Layout from "../layouts/Layout.astro";
             <span class="font-bold text-lg">Total</span>
             <span
               class="font-headline font-extrabold text-2xl text-[#005d90]"
-              id="total">$0.00</span
+              id="total">$0,00</span
             >
           </div>
         </div>
@@ -77,6 +77,7 @@ import Layout from "../layouts/Layout.astro";
 <script>
   import { favoritesStore } from "../stores/favoritesStore";
   import { renderEmptyCart } from "../utils/fucntions"; // Asegúrate de que el path y nombre sean correctos
+  import { formatMoney } from "../utils/money";
   import type { Producto } from "../utils/types";
 
   // Extiende la interfaz Window para incluir removeItem
@@ -149,7 +150,7 @@ import Layout from "../layouts/Layout.astro";
                 </button>
               </div>
               <div class="mt-2 flex justify-between items-center">
-                <span class="font-extrabold text-[#005d90]">$${price.toFixed(2)}</span>
+                <span class="font-extrabold text-[#005d90]">${formatMoney(price)}</span>
               </div>
             </div>
           </div>
@@ -158,12 +159,12 @@ import Layout from "../layouts/Layout.astro";
       });
 
       // Actualizar totales
-      if (subtotalEl) subtotalEl.innerText = `$${totalAccumulated.toFixed(2)}`;
-      if (totalEl) totalEl.innerText = `$${totalAccumulated.toFixed(2)}`;
+      if (subtotalEl) subtotalEl.innerText = formatMoney(totalAccumulated);
+      if (totalEl) totalEl.innerText = formatMoney(totalAccumulated);
     } else {
       renderEmptyCart();
-      if (subtotalEl) subtotalEl.innerText = `$0.00`;
-      if (totalEl) totalEl.innerText = `$0.00`;
+      if (subtotalEl) subtotalEl.innerText = formatMoney(0);
+      if (totalEl) totalEl.innerText = formatMoney(0);
     }
   }
 
@@ -174,7 +175,7 @@ import Layout from "../layouts/Layout.astro";
     .getElementById("checkout-whatsapp")
     ?.addEventListener("click", () => {
       const totalEl = document.getElementById("total");
-      const total = totalEl ? totalEl.innerText.trim() : "$0.00";
+      const total = totalEl ? totalEl.innerText.trim() : "$0,00";
 
       // Buscamos cada contenedor de item para armar la info
       const productDetails = Array.from(

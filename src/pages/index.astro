@@ -7,6 +7,7 @@ import SizeStock from "../components/SizeStock.astro";
 import Layout from "../layouts/Layout.astro";
 import { listPublicProducts } from "../server/catalog/public-products";
 import { toCatalogFilterRecord } from "../utils/catalog-filters";
+import { formatMoney } from "../utils/money";
 import type { Producto } from "../utils/types";
 
 let uniformes: Producto[] = [];
@@ -372,7 +373,7 @@ const genderStyles = {
                           <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
                         </a>
                       </div>
-                      <p class="text-lg font-bold text-[#005d90]">${product.Precio}</p>
+                      <p class="text-lg font-bold text-[#005d90]">{formatMoney(product.Precio)}</p>
                     </div>
                     <div class="space-y-1 text-sm leading-6 text-slate-800">
                       <p><span class="font-bold">Tipo:</span> {product.Tipo}</p>
