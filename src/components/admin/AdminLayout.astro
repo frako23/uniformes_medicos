@@ -18,6 +18,7 @@ const { title = "Panel administrativo", csrfToken = "" } = Astro.props;
         <a href="/admin" class="font-bold">Panel de administración</a>
         <nav class="flex items-center gap-4 text-sm" aria-label="Administración">
           <a href="/admin/productos" class="hover:underline">Productos</a>
+          <a href="/admin/estadisticas" class="hover:underline">Estadísticas</a>
           <a href="/" class="hover:underline">Ver vitrina</a>
           <button id="logout" data-csrf={csrfToken} class="rounded-md border border-slate-300 px-3 py-2 hover:bg-slate-50">Salir</button>
         </nav>
